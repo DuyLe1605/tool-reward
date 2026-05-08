@@ -1,11 +1,13 @@
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 const readline = require('readline');
 
 const CONFIG = {
     userDataDir: path.join(process.env.LOCALAPPDATA, 'Microsoft', 'Edge', 'User Data'),
     wikiApiUrl: 'https://vi.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*',
+    rewardsUrl: 'https://rewards.bing.com/',
     minQueryWords: 6,
     maxQueryWords: 10,
     minDelay: 25000, 
@@ -44,7 +46,122 @@ async function fetchRobustWikiText() {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+async function completeRewardsActivities(page) {
+    console.log('\n--- ĐANG XỬ LÝ CÁC NHIỆM VỤ REWARDS ---');
+    try {
+        await page.goto(CONFIG.rewardsUrl, { waitUntil: 'networkidle' });
+        await sleep(5000);
+
+        // 1. Xử lý Daily Set
+        console.log('Đang kiểm tra Daily Set...');
+        const dailyItems = await page.locator('.daily-set-item, .mee-rewards-daily-set-item-view').all();
+        for (const item of dailyItems) {
+            const isCompleted = await item.locator('.mee-icon-CheckMark, .completed').count() > 0;
+            if (!isCompleted) {
+                console.log('Đang thực hiện một nhiệm vụ Daily Set...');
+                const [popup] = await Promise.all([
+                    page.waitForEvent('popup', { timeout: 10000 }).catch(() => null),
+                    item.click().catch(() => {}),
+                ]);
+
+                if (popup) {
+                    await popup.waitForLoadState('networkidle');
+                    await sleep(5000);
+                    await handleActivityContent(popup);
+                    await popup.close();
+                } else {
+                    // Nếu không mở popup, có thể nó mở một panel bên phải (như user mô tả)
+                    console.log('Kiểm tra xem có panel phụ nào xuất hiện không...');
+                    await sleep(2000);
+                    const subActivities = await page.locator('.ds-card-sec, .p-card, .overlay-item').all();
+                    for (const sub of subActivities) {
+                        const isSubCompleted = await sub.locator('.mee-icon-CheckMark, .completed').count() > 0;
+                        if (!isSubCompleted) {
+                            console.log('Đang thực hiện nhiệm vụ trong panel...');
+                            const [subPopup] = await Promise.all([
+                                page.waitForEvent('popup', { timeout: 5000 }).catch(() => null),
+                                sub.click().catch(() => {}),
+                            ]);
+                            if (subPopup) {
+                                await subPopup.waitForLoadState('networkidle');
+                                await sleep(3000);
+                                await subPopup.close();
+                            }
+                            await sleep(2000);
+                        }
+                    }
+                }
+                await sleep(3000);
+            }
+        }
+
+        // 2. Xử lý Keep Earning (More Activities)
+        console.log('Đang kiểm tra các nhiệm vụ "Keep earning"...');
+        // Cuộn xuống để load hết
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await sleep(2000);
+
+        const moreItems = await page.locator('.promotional-item, [data-bi-name="more_activities_item"]').all();
+        for (const item of moreItems) {
+            const isCompleted = await item.locator('.mee-icon-CheckMark, .completed').count() > 0;
+            const pointsText = await item.innerText();
+            const hasPoints = pointsText.includes('+') || pointsText.includes('pts');
+
+            if (!isCompleted && hasPoints) {
+                console.log('Đang thực hiện nhiệm vụ bổ sung...');
+                const [popup] = await Promise.all([
+                    page.waitForEvent('popup', { timeout: 10000 }).catch(() => null),
+                    item.click().catch(() => {}),
+                ]);
+
+                if (popup) {
+                    await popup.waitForLoadState('networkidle');
+                    await sleep(5000);
+                    await handleActivityContent(popup);
+                    await popup.close();
+                }
+                await sleep(3000);
+            }
+        }
+    } catch (err) {
+        console.error(`Lỗi khi xử lý Rewards: ${err.message}`);
+    }
+}
+
+async function handleActivityContent(page) {
+    try {
+        // Xử lý khảo sát (Poll)
+        const pollOption = page.locator('.btOption, #btoption0, .bt_optionTile').first();
+        if (await pollOption.isVisible()) {
+            console.log('Đang chọn khảo sát...');
+            await pollOption.click();
+            await sleep(3000);
+            return;
+        }
+
+        // Xử lý Quiz (chọn đáp án đầu tiên cho đến khi xong)
+        const quizOption = page.locator('.rq_button, .bt_optionText, #rqAnswerOption0').first();
+        if (await quizOption.isVisible()) {
+            console.log('Đang làm Quiz...');
+            for (let i = 0; i < 10; i++) { // Thử tối đa 10 câu
+                const options = await page.locator('.rq_button, .bt_optionText, #rqAnswerOption0').all();
+                if (options.length > 0) {
+                    await options[Math.floor(Math.random() * options.length)].click();
+                    await sleep(2000);
+                } else {
+                    break;
+                }
+            }
+        }
+    } catch (e) {}
+}
+
 async function runAutoSearch() {
+    try {
+        console.log('Đang dọn dẹp tiến trình Edge...');
+        execSync('taskkill /F /IM msedge.exe /T', { stdio: 'ignore' });
+    } catch (e) {}
+
     console.log('=========================================');
     console.log('   BING REWARDS AUTO SEARCH TOOL v8');
     console.log('   (DEEP STEALTH MODE - NO WEBDRIVER)');
@@ -134,6 +251,9 @@ async function runAutoSearch() {
             i += chunkSize;
         }
     }
+
+    // Sau khi search xong, chuyển qua làm nhiệm vụ Rewards
+    await completeRewardsActivities(page);
 
     console.log('\n--- HOÀN THÀNH ---');
     await context.close();
