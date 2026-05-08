@@ -1,0 +1,11 @@
+{
+  "description": "Microsoft Rewards Auto Search Tool",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "playwright": "^1.59.1",
+    "playwright-core": "^1.59.1"
+  }
+}
