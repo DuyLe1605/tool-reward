@@ -7,11 +7,11 @@ const readline = require('readline');
 const CONFIG = {
     userDataDir: path.join(process.env.LOCALAPPDATA, 'Microsoft', 'Edge', 'User Data'),
     wikiApiUrl: 'https://vi.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*',
-    rewardsUrl: 'https://rewards.bing.com/',
+    rewardsUrl: 'https://rewards.bing.com/earn',
     minQueryWords: 6,
     maxQueryWords: 10,
-    minDelay: 25000, 
-    maxDelay: 50000, 
+    minDelay: 10000, 
+    maxDelay: 20000, 
 };
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -49,109 +49,114 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 async function completeRewardsActivities(page) {
     console.log('\n--- ĐANG XỬ LÝ CÁC NHIỆM VỤ REWARDS ---');
     try {
-        await page.goto(CONFIG.rewardsUrl, { waitUntil: 'networkidle' });
+        await page.goto(CONFIG.rewardsUrl, { waitUntil: 'domcontentloaded' });
         await sleep(5000);
 
-        // 1. Xử lý Daily Set
-        console.log('Đang kiểm tra Daily Set...');
-        const dailyItems = await page.locator('.daily-set-item, .mee-rewards-daily-set-item-view').all();
-        for (const item of dailyItems) {
-            const isCompleted = await item.locator('.mee-icon-CheckMark, .completed').count() > 0;
-            if (!isCompleted) {
-                console.log('Đang thực hiện một nhiệm vụ Daily Set...');
-                const [popup] = await Promise.all([
-                    page.waitForEvent('popup', { timeout: 10000 }).catch(() => null),
-                    item.click().catch(() => {}),
-                ]);
+        // 1. Mở bảng Daily Set nếu nó chưa mở
+        console.log('Đang tìm và mở bảng Daily Set Streak...');
+        const dailySetHeader = page.locator('text="Daily Set Streak"').first();
+        if (await dailySetHeader.isVisible()) {
+            await dailySetHeader.click();
+            await sleep(3000);
+        }
 
-                if (popup) {
-                    await popup.waitForLoadState('networkidle');
-                    await sleep(5000);
-                    await handleActivityContent(popup);
-                    await popup.close();
-                } else {
-                    // Nếu không mở popup, có thể nó mở một panel bên phải (như user mô tả)
-                    console.log('Kiểm tra xem có panel phụ nào xuất hiện không...');
-                    await sleep(2000);
-                    const subActivities = await page.locator('.ds-card-sec, .p-card, .overlay-item').all();
-                    for (const sub of subActivities) {
-                        const isSubCompleted = await sub.locator('.mee-icon-CheckMark, .completed').count() > 0;
-                        if (!isSubCompleted) {
-                            console.log('Đang thực hiện nhiệm vụ trong panel...');
-                            const [subPopup] = await Promise.all([
-                                page.waitForEvent('popup', { timeout: 5000 }).catch(() => null),
-                                sub.click().catch(() => {}),
-                            ]);
-                            if (subPopup) {
-                                await subPopup.waitForLoadState('networkidle');
-                                await sleep(3000);
-                                await subPopup.close();
-                            }
-                            await sleep(2000);
-                        }
+        // 1. Mở bảng Daily Set Streak (Flyout) nếu chưa mở
+        const dailySetBtn = page.locator('button, .rounded-cornerCardDefault').filter({ hasText: /Daily Set Streak/i }).first();
+        if (await dailySetBtn.count() > 0) {
+            const isExpanded = await dailySetBtn.getAttribute('aria-expanded') === 'true';
+            if (!isExpanded) {
+                console.log('Đang mở bảng Daily Set Streak...');
+                await dailySetBtn.click({ force: true }).catch(() => {});
+                await page.waitForSelector('section[role="dialog"], [role="dialog"]', { state: 'visible', timeout: 5000 }).catch(() => {});
+                await sleep(2000);
+            }
+        }
+
+        // 2. Hàm xử lý nhiệm vụ trong một vùng cụ thể (Focus Mode)
+        const processContainer = async (containerLocator, label) => {
+            if (await containerLocator.count() === 0) return;
+            
+            await containerLocator.scrollIntoViewIfNeeded().catch(() => {});
+            const cards = await containerLocator.locator('.rounded-cornerCardDefault, a[href*="search"], a[href*="quiz"]').all();
+            
+            console.log(`--- Đang quét: ${label} (${cards.length} mục) ---`);
+
+            for (const card of cards) {
+                try {
+                    const cardHtml = await card.innerHTML();
+                    const cardText = (await card.innerText()).toLowerCase().replace(/\s+/g, ' ');
+                    const href = await card.getAttribute('href') || '';
+                    const title = cardText.split('\n')[0].substring(0, 40).trim();
+
+                    if ((cardText.includes('daily set streak') || cardText.includes('keep earning')) && label !== 'Bảng Flyout') continue;
+
+                    const isCompleted = cardHtml.includes('bg-statusSuccessRewardsBg') 
+                                        || cardHtml.includes('mee-icon-CheckMark')
+                                        || cardText.includes('completed') 
+                                        || cardText.includes('đã hoàn thành');
+                    if (isCompleted) continue;
+
+                    const skipKeywords = ['quest', 'expires', 'punch card', 'tháng 5', 'may highlights', 'check-in', 'bing app', 'redeem'];
+                    if (skipKeywords.some(k => cardText.includes(k)) || href.includes('/quest/')) continue;
+
+                    if (!cardText.includes('+') && !cardText.includes('pts') && !/\d+/.test(cardText)) continue;
+
+                    console.log(`- Đang xử lý: "${title}"`);
+                    await card.scrollIntoViewIfNeeded().catch(() => {});
+                    
+                    const [popup] = await Promise.all([
+                        page.waitForEvent('popup', { timeout: 8000 }).catch(() => null),
+                        card.click({ force: true }).catch(() => {}),
+                    ]);
+
+                    if (popup) {
+                        await popup.waitForLoadState('load');
+                        await sleep(5000);
+                        await handleActivityContent(popup);
+                        await popup.close();
                     }
-                }
-                await sleep(3000);
+                    await sleep(2000);
+                } catch (e) {}
             }
+        };
+
+        // BƯỚC 1: Xử lý Flyout
+        const flyout = page.locator('section[role="dialog"], [role="dialog"], .bg-flyout').first();
+        if (await flyout.isVisible()) {
+            await processContainer(flyout, 'Bảng Flyout');
+            console.log('Đóng bảng Daily Set...');
+            const closeBtn = flyout.locator('button[aria-label="Close"], button:has-text("Close")').first();
+            if (await closeBtn.isVisible()) await closeBtn.click().catch(() => {});
+            else await page.keyboard.press('Escape');
+            await sleep(2000);
         }
 
-        // 2. Xử lý Keep Earning (More Activities)
-        console.log('Đang kiểm tra các nhiệm vụ "Keep earning"...');
-        // Cuộn xuống để load hết
+        // BƯỚC 2: Xử lý Keep earning (section#moreactivities)
+        const moreActivities = page.locator('section#moreactivities').first();
+        if (await moreActivities.count() > 0) {
+            await processContainer(moreActivities, 'Khu vực Keep Earning');
+        }
+
+        // Cuộn xuống cuối trang để load phần "Keep earning"
+        console.log('\nĐang cuộn xuống để tìm thêm nhiệm vụ...');
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        await sleep(2000);
+        await sleep(3000);
 
-        const moreItems = await page.locator('.promotional-item, [data-bi-name="more_activities_item"]').all();
-        for (const item of moreItems) {
-            const isCompleted = await item.locator('.mee-icon-CheckMark, .completed').count() > 0;
-            const pointsText = await item.innerText();
-            const hasPoints = pointsText.includes('+') || pointsText.includes('pts');
+        console.log('\n--- HOÀN THÀNH ---');
 
-            if (!isCompleted && hasPoints) {
-                console.log('Đang thực hiện nhiệm vụ bổ sung...');
-                const [popup] = await Promise.all([
-                    page.waitForEvent('popup', { timeout: 10000 }).catch(() => null),
-                    item.click().catch(() => {}),
-                ]);
-
-                if (popup) {
-                    await popup.waitForLoadState('networkidle');
-                    await sleep(5000);
-                    await handleActivityContent(popup);
-                    await popup.close();
-                }
-                await sleep(3000);
-            }
-        }
     } catch (err) {
-        console.error(`Lỗi khi xử lý Rewards: ${err.message}`);
+        console.error(`Lỗi tổng thể Rewards: ${err.message}`);
     }
 }
 
 async function handleActivityContent(page) {
     try {
-        // Xử lý khảo sát (Poll)
-        const pollOption = page.locator('.btOption, #btoption0, .bt_optionTile').first();
-        if (await pollOption.isVisible()) {
-            console.log('Đang chọn khảo sát...');
-            await pollOption.click();
-            await sleep(3000);
-            return;
-        }
-
-        // Xử lý Quiz (chọn đáp án đầu tiên cho đến khi xong)
-        const quizOption = page.locator('.rq_button, .bt_optionText, #rqAnswerOption0').first();
-        if (await quizOption.isVisible()) {
-            console.log('Đang làm Quiz...');
-            for (let i = 0; i < 10; i++) { // Thử tối đa 10 câu
-                const options = await page.locator('.rq_button, .bt_optionText, #rqAnswerOption0').all();
-                if (options.length > 0) {
-                    await options[Math.floor(Math.random() * options.length)].click();
-                    await sleep(2000);
-                } else {
-                    break;
-                }
-            }
+        // Click đại một cái nếu là Poll hoặc Quiz đơn giản
+        const options = await page.locator('.btOption, .rq_button, .bt_optionText, #rqAnswerOption0, .bt_optionTile').all();
+        if (options.length > 0) {
+            console.log('  Đang tương tác với nội dung (Poll/Quiz)...');
+            await options[Math.floor(Math.random() * options.length)].click().catch(() => {});
+            await sleep(2000);
         }
     } catch (e) {}
 }
@@ -199,8 +204,8 @@ async function runAutoSearch() {
     });
 
     await page.goto('https://www.bing.com');
-    console.log('Đang chờ ổn định tài khoản (10s)...');
-    await sleep(10000);
+    console.log('Đang chờ ổn định tài khoản (5s)...');
+    await sleep(5000);
 
     let totalSearched = 0;
     while (totalSearched < maxSearches) {
