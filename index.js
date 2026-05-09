@@ -161,6 +161,111 @@ async function handleActivityContent(page) {
     } catch (e) {}
 }
 
+function parseChoices(input, max) {
+    if (input.toLowerCase() === 'all') {
+        return Array.from({ length: max }, (_, i) => i);
+    }
+    const choices = [];
+    const parts = input.split(/[, ]+/);
+    for (const part of parts) {
+        if (part.includes('-')) {
+            const [startStr, endStr] = part.split('-');
+            const start = parseInt(startStr);
+            const end = parseInt(endStr);
+            for (let i = start; i <= end; i++) {
+                if (i >= 1 && i <= max) choices.push(i - 1);
+            }
+        } else {
+            const val = parseInt(part);
+            if (val >= 1 && val <= max) choices.push(val - 1);
+        }
+    }
+    return [...new Set(choices)].sort((a, b) => a - b);
+}
+
+async function performProfileTask(selectedProfile, maxSearches) {
+    const prefix = `[${selectedProfile.name}]`;
+    console.log(`\n>>> BẮT ĐẦU: ${prefix} (${selectedProfile.email})`);
+
+    try {
+        const context = await chromium.launchPersistentContext(CONFIG.userDataDir, {
+            channel: 'msedge',
+            headless: false,
+            userAgent: 'Mozilla/5.0 (Windows NT NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0',
+            viewport: { width: 1280, height: 720 },
+            ignoreDefaultArgs: ['--enable-automation'],
+            args: [
+                `--profile-directory=${selectedProfile.folder}`,
+                '--disable-blink-features=AutomationControlled',
+                '--no-sandbox',
+                '--disable-infobars',
+            ]
+        });
+
+        const page = await context.newPage();
+
+        await page.addInitScript(() => {
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            window.chrome = { runtime: {} };
+            Object.defineProperty(navigator, 'languages', { get: () => ['vi-VN', 'vi', 'en-US', 'en'] });
+        });
+
+        await page.goto('https://www.bing.com');
+        console.log(`${prefix} Đang chờ ổn định tài khoản (5s)...`);
+        await sleep(5000);
+
+        let totalSearched = 0;
+        while (totalSearched < maxSearches) {
+            const rawText = await fetchRobustWikiText();
+            const words = rawText.replace(/[\n\r.,!?()"]/g, "").split(/\s+/).filter(w => w.length > 0);
+            let i = 0;
+            
+            while (i < words.length && totalSearched < maxSearches) {
+                const chunkSize = Math.floor(Math.random() * 5) + 6;
+                const query = words.slice(i, i + chunkSize).join(" ");
+                if (!query.trim()) { i += chunkSize; continue; }
+
+                totalSearched++;
+                console.log(`${prefix} [${totalSearched}/${maxSearches}] Đang tìm: "${query}"`);
+
+                try {
+                    await page.goto('https://www.bing.com', { waitUntil: 'networkidle' });
+                    const searchBox = await page.waitForSelector('textarea[name="q"], input[name="q"]', { timeout: 10000 });
+                    
+                    await searchBox.hover();
+                    await sleep(500);
+                    await searchBox.click();
+                    
+                    await page.keyboard.type(query, { delay: Math.random() * 100 + 50 });
+                    await page.keyboard.press('Enter');
+                    await page.waitForLoadState('networkidle');
+                    await sleep(3000);
+
+                    await page.evaluate(() => {
+                        window.scrollBy(0, Math.floor(Math.random() * 500) + 200);
+                    });
+
+                    const waitTime = Math.floor(Math.random() * (CONFIG.maxDelay - CONFIG.minDelay + 1)) + CONFIG.minDelay;
+                    console.log(`${prefix} Nghỉ ${waitTime / 1000} giây...`);
+                    await sleep(waitTime);
+                } catch (err) {
+                    console.error(`${prefix} Lỗi search: ${err.message}`);
+                    break;
+                }
+                i += chunkSize;
+            }
+        }
+
+        await completeRewardsActivities(page);
+
+        console.log(`\n<<< HOÀN THÀNH: ${prefix}`);
+        await context.close();
+    } catch (err) {
+        console.error(`${prefix} LỖI NGHIÊM TRỌNG: ${err.message}`);
+        console.log(`${prefix} Có thể do Profile đang được mở ở một cửa sổ khác.`);
+    }
+}
+
 async function runAutoSearch() {
     try {
         console.log('Đang dọn dẹp tiến trình Edge...');
@@ -168,101 +273,47 @@ async function runAutoSearch() {
     } catch (e) {}
 
     console.log('=========================================');
-    console.log('   BING REWARDS AUTO SEARCH TOOL v8');
-    console.log('   (DEEP STEALTH MODE - NO WEBDRIVER)');
+    console.log('   BING REWARDS AUTO SEARCH TOOL v8.1');
+    console.log('   (MULTI-PROFILE SUPPORT)');
     console.log('=========================================\n');
 
     const profiles = getEdgeProfiles();
     profiles.forEach((p, index) => console.log(`${index + 1}. [${p.name}] - ${p.email}`));
-    const choice = await askQuestion('\nChọn Profile [1]: ') || '1';
-    const selectedProfile = profiles[parseInt(choice) - 1] || profiles[0];
-    const maxSearches = parseInt(await askQuestion('Số lượt search [35]: ') || '35');
+    
+    console.log('\nHD: Nhập số (1,2), khoảng (1-3), hoặc "all"');
+    const choiceInput = await askQuestion('Chọn các Profile [1]: ') || '1';
+    const selectedIndices = parseChoices(choiceInput, profiles.length);
+    
+    if (selectedIndices.length === 0) {
+        console.log('Không có profile nào được chọn. Thoát.');
+        rl.close();
+        return;
+    }
 
-    const context = await chromium.launchPersistentContext(CONFIG.userDataDir, {
-        channel: 'msedge',
-        headless: false,
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0',
-        viewport: { width: 1366, height: 768 },
-        ignoreDefaultArgs: ['--enable-automation'], // Quan trọng: Xóa bỏ cờ tự động mặc định
-        args: [
-            `--profile-directory=${selectedProfile.folder}`,
-            '--disable-blink-features=AutomationControlled',
-            '--no-sandbox',
-            '--disable-infobars',
-            '--window-position=0,0',
-        ]
-    });
+    const maxSearches = parseInt(await askQuestion('Số lượt search mỗi profile [35]: ') || '35');
+    const mode = selectedIndices.length > 1 ? (await askQuestion('Chạy song song (p) hay lần lượt (s)? [s]: ') || 's') : 's';
 
-    const page = await context.newPage();
+    console.log(`\nBắt đầu xử lý ${selectedIndices.length} profile...\n`);
 
-    // XÓA BỎ DẤU VẾT WEBDRIVER (CỰC KỲ QUAN TRỌNG)
-    await page.addInitScript(() => {
-        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-        window.chrome = { runtime: {} };
-        Object.defineProperty(navigator, 'languages', { get: () => ['vi-VN', 'vi', 'en-US', 'en'] });
-        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-    });
-
-    await page.goto('https://www.bing.com');
-    console.log('Đang chờ ổn định tài khoản (5s)...');
-    await sleep(5000);
-
-    let totalSearched = 0;
-    while (totalSearched < maxSearches) {
-        const rawText = await fetchRobustWikiText();
-        const words = rawText.replace(/[\n\r.,!?()"]/g, "").split(/\s+/).filter(w => w.length > 0);
-        let i = 0;
-        
-        while (i < words.length && totalSearched < maxSearches) {
-            const chunkSize = Math.floor(Math.random() * 5) + 6;
-            const query = words.slice(i, i + chunkSize).join(" ");
-            if (!query.trim()) { i += chunkSize; continue; }
-
-            totalSearched++;
-            console.log(`\n[${totalSearched}/${maxSearches}] Đang tìm: "${query}"`);
-
-            try {
-                await page.goto('https://www.bing.com', { waitUntil: 'networkidle' });
-                const searchBox = await page.waitForSelector('textarea[name="q"], input[name="q"]');
-                
-                // Di chuyển chuột ảo đến ô search
-                await searchBox.hover();
-                await sleep(500);
-                await searchBox.click();
-                
-                await page.keyboard.type(query, { delay: Math.random() * 200 + 100 });
-                await page.keyboard.press('Enter');
-                await page.waitForLoadState('networkidle');
-                await sleep(5000);
-
-                // Cuộn trang
-                await page.evaluate(() => {
-                    const scrollStep = 100;
-                    const scrollCount = Math.floor(Math.random() * 5) + 3;
-                    let currentScroll = 0;
-                    const timer = setInterval(() => {
-                        window.scrollBy(0, scrollStep);
-                        currentScroll++;
-                        if (currentScroll >= scrollCount) clearInterval(timer);
-                    }, 200);
-                });
-
-                const waitTime = Math.floor(Math.random() * (CONFIG.maxDelay - CONFIG.minDelay + 1)) + CONFIG.minDelay;
-                console.log(`Nghỉ ${waitTime / 1000} giây...`);
-                await sleep(waitTime);
-            } catch (err) {
-                console.error(`Lỗi: ${err.message}`);
-            }
-            i += chunkSize;
+    if (mode.toLowerCase() === 'p') {
+        // Chạy song song
+        const tasks = selectedIndices.map(idx => performProfileTask(profiles[idx], maxSearches));
+        await Promise.all(tasks);
+    } else {
+        // Chạy lần lượt
+        for (const idx of selectedIndices) {
+            await performProfileTask(profiles[idx], maxSearches);
         }
     }
 
-    // Sau khi search xong, chuyển qua làm nhiệm vụ Rewards
-    await completeRewardsActivities(page);
-
-    console.log('\n--- HOÀN THÀNH ---');
-    await context.close();
+    console.log('\n=========================================');
+    console.log('   TẤT CẢ TÁC VỤ ĐÃ HOÀN THÀNH!');
+    console.log('=========================================');
     rl.close();
 }
 
-runAutoSearch().catch(err => console.error(err));
+runAutoSearch().catch(err => {
+    console.error(err);
+    rl.close();
+});
+
