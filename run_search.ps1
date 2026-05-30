@@ -1,4 +1,4 @@
-# BING REWARDS AUTO SEARCH TOOL v9.0 — Launcher
+﻿# BING REWARDS AUTO SEARCH TOOL v9.0 — Launcher
 # Chạy: nhấp đúp vào file này, hoặc PowerShell -File run_search.ps1
 
 $ErrorActionPreference = 'Stop'
