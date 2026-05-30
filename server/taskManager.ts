@@ -10,6 +10,7 @@ import { performProfileTask } from "../src/search";
 import { checkPointsForProfiles } from "../src/checkPoints";
 import { taskController } from "../src/taskController";
 import { emitStatus } from "../src/logger";
+import { preventSleep, allowSleep } from "../src/wakeLock";
 
 export type RunMode = "p" | "s";
 
@@ -59,6 +60,7 @@ export async function startTask(profileIndices: number[], maxSearches: number, m
     });
 
     taskController.reset();
+    preventSleep();
     emitStatus(true);
 
     // Chạy async, không block HTTP response
@@ -78,6 +80,7 @@ export async function startTask(profileIndices: number[], maxSearches: number, m
             status.profiles = [];
             status.progress = {};
             taskController.done();
+            allowSleep();
             emitStatus(false);
         }
     })();
@@ -100,6 +103,7 @@ export async function startCheckPoints(profileIndices: number[]): Promise<void> 
     status.progress = {};
     status.startedAt = Date.now();
     taskController.reset();
+    preventSleep();
     emitStatus(true);
 
     (async () => {
@@ -111,6 +115,7 @@ export async function startCheckPoints(profileIndices: number[]): Promise<void> 
             status.profiles = [];
             status.progress = {};
             taskController.done();
+            allowSleep();
             emitStatus(false);
         }
     })();
