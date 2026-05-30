@@ -2,30 +2,23 @@
  * @fileoverview Các hàm tiện ích chung dùng xuyên suốt project.
  */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
 
 /**
  * Dừng thực thi async trong một khoảng thời gian nhất định.
- * Dùng để tạo delay tự nhiên giữa các hành động, mô phỏng người dùng thật.
- *
- * @param {number} ms - Số mili-giây cần chờ.
- * @returns {Promise<void>}
+ * Tạo delay tự nhiên giữa các hành động, mô phỏng người dùng thật.
  */
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Sao chép đệ quy toàn bộ thư mục từ src sang dest.
  * Bỏ qua các file đang bị Edge khóa (lock file) để tránh crash.
  *
- * Dùng trong chế độ song song: mỗi profile cần một userDataDir riêng biệt
- * vì Playwright/Edge không cho phép hai instance dùng chung cùng một thư mục.
- *
- * @param {string} src  - Đường dẫn thư mục nguồn.
- * @param {string} dest - Đường dẫn thư mục đích (tự tạo nếu chưa tồn tại).
- * @returns {Promise<void>}
+ * Dùng trong chế độ song song: mỗi profile cần userDataDir riêng biệt
+ * vì Playwright/Edge không cho phép hai instance dùng chung một thư mục.
  */
-async function copyDirRecursive(src, dest) {
+export async function copyDirRecursive(src: string, dest: string): Promise<void> {
     if (!fs.existsSync(src)) return;
     fs.mkdirSync(dest, { recursive: true });
     const entries = fs.readdirSync(src, { withFileTypes: true });
@@ -38,10 +31,8 @@ async function copyDirRecursive(src, dest) {
             } else {
                 fs.copyFileSync(srcPath, destPath);
             }
-        } catch (e) {
+        } catch {
             // Bỏ qua file đang bị khóa bởi tiến trình khác (vd: LockFile, SingletonLock)
         }
     }
 }
-
-module.exports = { sleep, copyDirRecursive };
