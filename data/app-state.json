@@ -20,13 +20,13 @@
       "thisYear": 14443
     },
     "Profile 4": {
-      "today": 15,
-      "desktop": "15/90",
+      "today": 113,
+      "desktop": "81/90",
       "mobile": "0/60",
-      "offers": 0,
-      "lifetime": 3676,
-      "thisMonth": 3676,
-      "thisYear": 3676
+      "offers": 32,
+      "lifetime": 3777,
+      "thisMonth": 3777,
+      "thisYear": 3777
     },
     "Profile 3": {
       "today": 122,
@@ -56,13 +56,13 @@
       "thisYear": 3151
     },
     "Profile 7": {
-      "today": 44,
-      "desktop": "12/90",
+      "today": 110,
+      "desktop": "78/90",
       "mobile": "0/60",
-      "offers": 0,
-      "lifetime": 2073,
-      "thisMonth": 2073,
-      "thisYear": 2073
+      "offers": 32,
+      "lifetime": 2139,
+      "thisMonth": 2139,
+      "thisYear": 2139
     }
   }
 }
