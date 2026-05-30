@@ -1,18 +1,18 @@
 {
-  "lastCheckedDate": "Sat May 30 2026",
+  "lastCheckedDate": "Sun May 31 2026",
   "points": {
     "Profile 1": {
-      "today": 125,
-      "desktop": "90/90",
-      "mobile": "6/60",
-      "offers": 29,
+      "today": 0,
+      "desktop": "0/90",
+      "mobile": "0/60",
+      "offers": 0,
       "lifetime": 88891,
       "thisMonth": 6489,
       "thisYear": 18255
     },
     "Profile 2": {
-      "today": 90,
-      "desktop": "90/90",
+      "today": 0,
+      "desktop": "0/90",
       "mobile": "0/60",
       "offers": 0,
       "lifetime": 33798,
@@ -20,17 +20,17 @@
       "thisYear": 14443
     },
     "Profile 4": {
-      "today": 113,
-      "desktop": "81/90",
+      "today": 0,
+      "desktop": "0/90",
       "mobile": "0/60",
-      "offers": 32,
-      "lifetime": 3777,
-      "thisMonth": 3777,
-      "thisYear": 3777
+      "offers": 0,
+      "lifetime": 3786,
+      "thisMonth": 3786,
+      "thisYear": 3786
     },
     "Profile 3": {
-      "today": 122,
-      "desktop": "90/90",
+      "today": 0,
+      "desktop": "0/90",
       "mobile": "0/60",
       "offers": 0,
       "lifetime": 3488,
@@ -38,8 +38,8 @@
       "thisYear": 3488
     },
     "Profile 5": {
-      "today": 122,
-      "desktop": "90/90",
+      "today": 4,
+      "desktop": "0/90",
       "mobile": "0/60",
       "offers": 0,
       "lifetime": 3570,
@@ -47,22 +47,22 @@
       "thisYear": 3570
     },
     "Profile 6": {
-      "today": 101,
-      "desktop": "69/90",
+      "today": 4,
+      "desktop": "0/90",
       "mobile": "0/60",
       "offers": 0,
-      "lifetime": 3151,
-      "thisMonth": 3151,
-      "thisYear": 3151
+      "lifetime": 3172,
+      "thisMonth": 3172,
+      "thisYear": 3172
     },
     "Profile 7": {
-      "today": 110,
-      "desktop": "78/90",
+      "today": 4,
+      "desktop": "0/90",
       "mobile": "0/60",
-      "offers": 32,
-      "lifetime": 2139,
-      "thisMonth": 2139,
-      "thisYear": 2139
+      "offers": 0,
+      "lifetime": 2151,
+      "thisMonth": 2151,
+      "thisYear": 2151
     }
   }
 }

@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/api";
 import { useAppStore } from "@/store/useAppStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Play, Square, ChevronUp, ChevronDown, Shuffle, BarChart2 } from "lucide-react";
+import { Play, Square, ChevronUp, ChevronDown, Shuffle, BarChart2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function ControlPanel() {
@@ -18,6 +18,12 @@ export function ControlPanel() {
 
     const { maxSearches, mode, selectedIndices, setMaxSearches, setMode } = useAppStore();
     const running = status?.running ?? false;
+    const [stopping, setStopping] = useState(false);
+
+    // Reset overlay khi server xác nhận đã dừng hẳn
+    useEffect(() => {
+        if (!running) setStopping(false);
+    }, [running]);
 
     // Local string state cho input — cho phép xóa hết rồi gõ số mới
     const [inputValue, setInputValue] = useState(String(maxSearches));
@@ -160,12 +166,29 @@ export function ControlPanel() {
                     <Button
                         variant="destructive"
                         className="w-full gap-2 mt-1"
-                        onClick={() => stopMutation.mutate()}
-                        disabled={stopMutation.isPending}
+                        onClick={() => { setStopping(true); stopMutation.mutate(); }}
+                        disabled={stopping}
                     >
-                        <Square className="w-3.5 h-3.5" />
-                        Dừng lại
+                        {stopping ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                            <Square className="w-3.5 h-3.5" />
+                        )}
+                        {stopping ? "Đang dừng..." : "Dừng lại"}
                     </Button>
+                )}
+
+                {/* Overlay toàn trang khi đang dừng */}
+                {stopping && (
+                    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+                        <div className="bg-card border border-border rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-55">
+                            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                            <div className="text-center">
+                                <p className="font-semibold text-sm">Đang dừng tiến trình</p>
+                                <p className="text-xs text-muted-foreground mt-1">Chờ tác vụ hiện tại hoàn thành...</p>
+                            </div>
+                        </div>
+                    </div>
                 )}
 
                 {(startMutation.isError || checkPointsMutation.isError) && (

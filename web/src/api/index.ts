@@ -36,4 +36,7 @@ export const api = {
 
     /** Đánh dấu đã kiểm tra điểm trong ngày hôm nay. */
     markChecked: () => http.post<{ ok: boolean }>("/app-state/checked").then((r) => r.data),
+
+    /** Tắt server và đóng ứng dụng. */
+    shutdown: () => http.post<{ ok: boolean }>("/shutdown").then((r) => r.data),
 };

@@ -5,10 +5,10 @@ import { ProfileList } from "@/components/ProfileList";
 import { ControlPanel } from "@/components/ControlPanel";
 import { LogConsole } from "@/components/LogConsole";
 import { ProgressPanel } from "@/components/ProgressPanel";
+import { DailyCheckDialog } from "@/components/DailyCheckDialog";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useAppStore } from "@/store/useAppStore";
 import { api } from "@/api";
-import { Button } from "@/components/ui/button";
 
 const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: 1 } },
@@ -64,7 +64,7 @@ function AppInner() {
     return (
         <div className="min-h-screen bg-background flex flex-col">
             <Header />
-            <main className="flex-1 max-w-[1400px] mx-auto w-full px-3 py-3 grid grid-cols-1 lg:grid-cols-[280px_1fr_260px] gap-3">
+            <main className="flex-1 max-w-350 mx-auto w-full px-3 py-3 grid grid-cols-1 lg:grid-cols-[280px_1fr_260px] gap-3">
                 {/* Cột trái: profile + điều khiển */}
                 <div className="flex flex-col gap-3">
                     <ProfileList />
@@ -80,29 +80,12 @@ function AppInner() {
                 </div>
             </main>
 
-            {/* Dialog kiểm tra điểm đầu ngày */}
             {showDailyDialog && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-                    <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4">
-                        <div className="flex items-center gap-3">
-                            <span className="text-3xl">🪙</span>
-                            <div>
-                                <h2 className="font-semibold text-base">Kiểm tra điểm hôm nay?</h2>
-                                <p className="text-sm text-muted-foreground mt-0.5">
-                                    Tự động kiểm tra điểm tất cả {profiles?.length ?? "..."} profile.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <Button className="flex-1" onClick={handleCheckAll}>
-                                Kiểm tra ngay
-                            </Button>
-                            <Button variant="outline" className="flex-1" onClick={handleDismiss}>
-                                Để sau
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+                <DailyCheckDialog
+                    profileCount={profiles?.length}
+                    onCheckAll={handleCheckAll}
+                    onDismiss={handleDismiss}
+                />
             )}
         </div>
     );

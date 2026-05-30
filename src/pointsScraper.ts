@@ -37,12 +37,18 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
                 return parseInt(s.replace(/,/g, ""), 10) || 0;
             }
 
-            // Điểm hôm nay: element có class chứa "pageHeader"
+            // Scoped vào dialog để tránh bắt nhầm element ngoài flyout
+            const dialog = document.querySelector<Element>('[role="dialog"]');
+            const scope = dialog ?? document;
+
+            // Điểm hôm nay: <p class="grow text-pageHeader">N</p> bên trong dialog
             let today = 0;
-            for (const el of document.querySelectorAll("[class*='pageHeader']")) {
-                const n = parseNum(el.textContent?.trim() ?? "");
-                if (n > 0) {
-                    today = n;
+            let todayFound = false;
+            for (const el of scope.querySelectorAll("[class*='pageHeader']")) {
+                const txt = el.textContent?.trim() ?? "";
+                if (txt !== "") {
+                    today = parseNum(txt);
+                    todayFound = true;
                     break;
                 }
             }
@@ -51,7 +57,7 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
             // Cấu trúc: grid > span | div>p(LABEL) | div(VALUE) | span
             // Walk up từ <p> đến grid container có inline style gridTemplateColumns.
             let activityGrid: Element | null = null;
-            for (const p of document.querySelectorAll("p")) {
+            for (const p of scope.querySelectorAll("p")) {
                 if (p.textContent?.trim() === "Desktop Bing search") {
                     let el: Element | null = p;
                     while (el) {
@@ -65,7 +71,9 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
                 }
             }
 
-            let desktop = "", mobile = "", offers = 0;
+            let desktop = "",
+                mobile = "",
+                offers = 0;
             if (activityGrid) {
                 for (const p of activityGrid.querySelectorAll("p")) {
                     const label = p.textContent?.trim() ?? "";
@@ -76,7 +84,7 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
                         const val =
                             spans.length >= 2
                                 ? (spans[0].textContent ?? "") + (spans[1].textContent ?? "")
-                                : valueDiv.textContent?.trim() ?? "";
+                                : (valueDiv.textContent?.trim() ?? "");
                         if (label === "Desktop Bing search") desktop = val;
                         else mobile = val;
                     } else if (label === "Offers") {
@@ -85,9 +93,11 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
                 }
             }
 
-            // History rows — tìm trong toàn trang (leaf div pattern)
-            let lifetime = 0, thisMonth = 0, thisYear = 0;
-            for (const div of document.querySelectorAll("div")) {
+            // History rows — tìm trong scope (dialog hoặc toàn trang)
+            let lifetime = 0,
+                thisMonth = 0,
+                thisYear = 0;
+            for (const div of scope.querySelectorAll("div")) {
                 if (div.childElementCount !== 0) continue;
                 const txt = div.textContent?.trim() ?? "";
                 const val = parseNum(div.nextElementSibling?.textContent?.trim() ?? "");
@@ -96,12 +106,13 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
                 else if (txt === "This year") thisYear = val;
             }
 
-            return { today, desktop, mobile, offers, lifetime, thisMonth, thisYear };
-        })) as PointsSummary;
+            return { today, todayFound, desktop, mobile, offers, lifetime, thisMonth, thisYear };
+        })) as PointsSummary & { todayFound: boolean };
 
-        // Bỏ qua nếu không scrape được gì có ý nghĩa
-        if (!data.today && !data.desktop && !data.mobile && !data.lifetime) return null;
-        return data;
+        // Bỏ qua nếu không scrape được gì có ý nghĩa (lifetime luôn > 0 với account active)
+        if (!data.todayFound && !data.desktop && !data.mobile && !data.lifetime) return null;
+        const { todayFound: _f, ...result } = data;
+        return result as PointsSummary;
     } catch {
         return null;
     }

@@ -27,3 +27,6 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# App data (personal data, changes every run)
+data/app-state.json

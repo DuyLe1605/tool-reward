@@ -71,4 +71,9 @@ router.post("/app-state/checked", (_req, res) => {
     res.json({ ok: true });
 });
 
+router.post("/shutdown", (_req, res) => {
+    res.json({ ok: true });
+    setTimeout(() => process.exit(0), 200);
+});
+
 export default router;

@@ -55,17 +55,14 @@ export function ProfileList() {
     return (
         <Card className="flex flex-col">
             <CardHeader className="pb-2 shrink-0">
-                <CardTitle className="text-sm flex items-center gap-2">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span>Profiles Edge</span>
-                    <div className="flex items-center gap-1 ml-auto">
-                        {selectedIndices.length > 0 && (
-                            <span className="text-[10px] text-muted-foreground font-normal">
-                                {selectedIndices.length}/{profiles.length} đã chọn
-                            </span>
-                        )}
+                <CardTitle className="text-sm flex items-center gap-2 flex-nowrap">
+                    <Users className="w-4 h-4 text-primary shrink-0" />
+                    <span className="shrink-0">Profiles Edge</span>
+                    <div className="flex items-center gap-1 ml-auto shrink-0">
                         <Badge variant="secondary" className="tabular-nums">
-                            {profiles.length}
+                            {selectedIndices.length > 0
+                                ? `${selectedIndices.length}/${profiles.length}`
+                                : profiles.length}
                         </Badge>
                     </div>
                     <Button

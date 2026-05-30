@@ -1,20 +1,21 @@
-@echo off
+﻿@echo off
+chcp 65001 >nul
 cd /d "%~dp0"
 
-echo Dang khoi dong Web UI...
+echo Đang khởi động Web UI...
 echo =========================================
 echo    BING REWARDS AUTO SEARCH TOOL v9.0
-echo    Giao dien web: http://localhost:3789
+echo    Giao diện web: http://localhost:3789
 echo =========================================
 
-rem Khoi dong server nen (Express + WebSocket)
+rem Khởi động server nền (Express + WebSocket)
 start "Reward Server" /B cmd /c "npm run web > server.log 2>&1"
 
-rem Doi server khoi dong (3 giay)
+rem Đợi server khởi động (3 giây)
 timeout /t 3 /nobreak >nul
 
-rem Mo Edge khong dung profile (--inprivate + no-profile-directory)
-rem de khong bi tinh la 1 profile va khong bi dong khi taskkill
+rem Mở Edge không dùng profile (--inprivate)
+rem để không bị tính là 1 profile và không bị đóng khi tắt
 start "" "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" ^
   --inprivate ^
   --no-first-run ^
@@ -22,6 +23,19 @@ start "" "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" ^
   --disable-background-mode ^
   "http://localhost:3789"
 
-echo Server dang chay. Dong cua so nay se dung server.
-pause
-taskkill /F /FI "WINDOWTITLE eq Reward Server*" >nul 2>&1
+echo.
+echo Server đang chạy. Cửa sổ này sẽ tự đóng khi thoát ứng dụng.
+echo (Hoặc nhấn phím bất kỳ để đóng ngay)
+echo.
+
+:wait_loop
+timeout /t 2 /nobreak >nul
+netstat -ano | find ":3789" | find "LISTENING" >nul 2>&1
+if errorlevel 1 goto :server_stopped
+goto :wait_loop
+
+:server_stopped
+echo.
+echo Server đã dừng. Đóng cửa sổ...
+timeout /t 1 /nobreak >nul
+exit

@@ -1,12 +1,36 @@
 import { cn } from "@/lib/utils";
-import { Wifi, WifiOff, Moon, Sun } from "lucide-react";
+import { Wifi, WifiOff, Moon, Sun, Power } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { api } from "@/api";
+import {
+    AlertDialog,
+    AlertDialogTrigger,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogFooter,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogAction,
+    AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 export function Header() {
     const wsConnected = useAppStore((s) => s.wsConnected);
     const theme = useAppStore((s) => s.theme);
     const setTheme = useAppStore((s) => s.setTheme);
+    const [exiting, setExiting] = useState(false);
+
+    const handleExit = async () => {
+        setExiting(true);
+        try {
+            await api.shutdown();
+        } catch {
+            // Server đã tắt, fetch thất bại là bình thường
+        }
+        window.close();
+    };
 
     return (
         <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10 px-6 py-3 flex items-center justify-between">
@@ -38,6 +62,34 @@ export function Header() {
                 >
                     {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </Button>
+                <div className="w-px h-5 bg-border" />
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:text-destructive hover:bg-destructive/10"
+                            title="Thoát ứng dụng"
+                            disabled={exiting}
+                        >
+                            <Power className="w-4 h-4" />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Thoát ứng dụng?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Server sẽ dừng hoàn toàn. Nếu có task đang chạy, nó sẽ bị huỷ ngay lập tức.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleExit} disabled={exiting}>
+                                {exiting ? "Đang thoát..." : "Thoát"}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </header>
     );
