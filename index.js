@@ -96,8 +96,15 @@ async function completeRewardsActivities(page) {
                                         || cardText.includes('đã hoàn thành');
                     if (isCompleted) continue;
 
-                    const skipKeywords = ['quest', 'expires', 'punch card', 'tháng 5', 'may highlights', 'check-in', 'bing app', 'redeem'];
-                    if (skipKeywords.some(k => cardText.includes(k)) || href.includes('/quest/')) continue;
+                    const isDisabled = await card.getAttribute('aria-disabled') === 'true' 
+                                        || await card.getAttribute('data-disabled') === 'true';
+                    if (isDisabled) {
+                        // console.log(`- Bỏ qua (Đang khóa): "${title}"`);
+                        continue;
+                    }
+
+                    const skipKeywords = ['quest', 'expires', 'punch card', 'tháng 5', 'may highlights', 'check-in', 'bing app', 'redeem', 'search bar'];
+                    if (skipKeywords.some(k => cardText.includes(k)) || href.includes('/quest/') || href.includes('ux=searchbar')) continue;
 
                     if (!cardText.includes('+') && !cardText.includes('pts') && !/\d+/.test(cardText)) continue;
 
@@ -137,10 +144,13 @@ async function completeRewardsActivities(page) {
             await processContainer(moreActivities, 'Khu vực Keep Earning');
         }
 
-        // Cuộn xuống cuối trang để load phần "Keep earning"
-        console.log('\nĐang cuộn xuống để tìm thêm nhiệm vụ...');
-        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        await sleep(3000);
+        // Kiểm tra nút "Show more"
+        const showMoreBtn = page.locator('button:has-text("Show more")').first();
+        if (await showMoreBtn.isVisible()) {
+            console.log('Đang click "Show more" để hiện thêm nhiệm vụ...');
+            await showMoreBtn.click().catch(() => {});
+            await sleep(3000);
+        }
 
         console.log('\n--- HOÀN THÀNH ---');
 
