@@ -7,9 +7,22 @@ import path from "path";
 
 /**
  * Dừng thực thi async trong một khoảng thời gian nhất định.
- * Tạo delay tự nhiên giữa các hành động, mô phỏng người dùng thật.
+ * Nếu truyền `signal` (AbortSignal), sẽ kết thúc ngay khi bị abort.
  */
-export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve) => {
+        if (signal?.aborted) return resolve();
+        const id = setTimeout(resolve, ms);
+        signal?.addEventListener(
+            "abort",
+            () => {
+                clearTimeout(id);
+                resolve();
+            },
+            { once: true },
+        );
+    });
+}
 
 /**
  * Sao chép đệ quy toàn bộ thư mục từ src sang dest.

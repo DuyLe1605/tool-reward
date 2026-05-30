@@ -20,6 +20,8 @@ import { log, emitProgress } from "./logger";
 import { taskController } from "./taskController";
 import type { EdgeProfile } from "./profiles";
 
+const sig = () => taskController.signal;
+
 /**
  * Thực hiện toàn bộ tác vụ (search + rewards) cho một profile Edge.
  *
@@ -93,7 +95,7 @@ export async function performProfileTask(
         await dismissCookieConsent(page);
         await setupCookieConsentHandler(page);
         log(`${prefix} Đang chờ ổn định tài khoản (5s)...`);
-        await sleep(5000);
+        await sleep(5000, sig());
 
         let totalSearched = 0;
 
@@ -135,7 +137,7 @@ export async function performProfileTask(
                     await page.keyboard.type(query, { delay: Math.random() * 100 + 50 });
                     await page.keyboard.press("Enter");
                     await page.waitForLoadState("domcontentloaded").catch(() => {});
-                    await sleep(3000);
+                    await sleep(3000, sig());
 
                     await page.evaluate(() => {
                         window.scrollBy(0, Math.floor(Math.random() * 500) + 200);
@@ -144,7 +146,7 @@ export async function performProfileTask(
                     const waitTime =
                         Math.floor(Math.random() * (CONFIG.maxDelay - CONFIG.minDelay + 1)) + CONFIG.minDelay;
                     log(`${prefix} Nghỉ ${waitTime / 1000}s...`);
-                    await sleep(waitTime);
+                    await sleep(waitTime, sig());
                 } catch (err) {
                     log(`${prefix} Lỗi search: ${(err as Error).message} — bỏ qua, tiếp tục`);
                     // Không break — tiếp tục search tiếp thay vì bỏ cả phiên

@@ -37,21 +37,9 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
                 return parseInt(s.replace(/,/g, ""), 10) || 0;
             }
 
-            // Tìm container của flyout "Points breakdown"
-            let container: Element = document.body;
-            for (const heading of document.querySelectorAll("h2, [slot='title']")) {
-                if (heading.textContent?.trim() === "Points breakdown") {
-                    const found = heading.closest('[role="dialog"], section');
-                    if (found) {
-                        container = found;
-                        break;
-                    }
-                }
-            }
-
             // Điểm hôm nay: element có class chứa "pageHeader"
             let today = 0;
-            for (const el of container.querySelectorAll("[class*='pageHeader']")) {
+            for (const el of document.querySelectorAll("[class*='pageHeader']")) {
                 const n = parseNum(el.textContent?.trim() ?? "");
                 if (n > 0) {
                     today = n;
@@ -59,41 +47,48 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
                 }
             }
 
-            // Desktop / Mobile search rows
-            // Cấu trúc grid: <div><p>LABEL</p></div> → nextElementSibling → <div><span>N</span><span>/M</span></div>
-            let desktop = "",
-                mobile = "";
-            let offers = 0;
-            for (const p of container.querySelectorAll("p")) {
-                const label = p.textContent?.trim() ?? "";
-                if (label !== "Desktop Bing search" && label !== "Mobile Bing search") continue;
-                const labelDiv = p.parentElement;
-                const valueDiv = labelDiv?.nextElementSibling;
-                if (!valueDiv) continue;
-                const spans = valueDiv.querySelectorAll("span");
-                const val =
-                    spans.length >= 2
-                        ? (spans[0].textContent ?? "") + (spans[1].textContent ?? "")
-                        : (valueDiv as HTMLElement).innerText.trim();
-                if (label === "Desktop Bing search") desktop = val;
-                else mobile = val;
-            }
-            // Offers: leaf div có text "Offers" → nextElementSibling
-            for (const div of container.querySelectorAll("div")) {
-                if (div.childElementCount !== 0) continue;
-                if (div.textContent?.trim() === "Offers") {
-                    offers = parseNum(div.nextElementSibling?.textContent?.trim() ?? "");
+            // Tìm grid chứa bảng activity bằng cách dùng "Desktop Bing search" làm anchor.
+            // Cấu trúc: grid > span | div>p(LABEL) | div(VALUE) | span
+            // Walk up từ <p> đến grid container có inline style gridTemplateColumns.
+            let activityGrid: Element | null = null;
+            for (const p of document.querySelectorAll("p")) {
+                if (p.textContent?.trim() === "Desktop Bing search") {
+                    let el: Element | null = p;
+                    while (el) {
+                        if ((el as HTMLElement).style?.gridTemplateColumns) {
+                            activityGrid = el;
+                            break;
+                        }
+                        el = el.parentElement;
+                    }
                     break;
                 }
             }
 
-            // History rows
-            // Cấu trúc: leaf <div>LABEL</div> → nextElementSibling → <div>VALUE</div>
-            let lifetime = 0,
-                thisMonth = 0,
-                thisYear = 0;
-            for (const div of container.querySelectorAll("div")) {
-                if (div.childElementCount !== 0) continue; // chỉ lấy leaf div (không có element con)
+            let desktop = "", mobile = "", offers = 0;
+            if (activityGrid) {
+                for (const p of activityGrid.querySelectorAll("p")) {
+                    const label = p.textContent?.trim() ?? "";
+                    const valueDiv = p.parentElement?.nextElementSibling;
+                    if (!valueDiv) continue;
+                    if (label === "Desktop Bing search" || label === "Mobile Bing search") {
+                        const spans = valueDiv.querySelectorAll("span");
+                        const val =
+                            spans.length >= 2
+                                ? (spans[0].textContent ?? "") + (spans[1].textContent ?? "")
+                                : valueDiv.textContent?.trim() ?? "";
+                        if (label === "Desktop Bing search") desktop = val;
+                        else mobile = val;
+                    } else if (label === "Offers") {
+                        offers = parseNum(valueDiv.textContent?.trim() ?? "");
+                    }
+                }
+            }
+
+            // History rows — tìm trong toàn trang (leaf div pattern)
+            let lifetime = 0, thisMonth = 0, thisYear = 0;
+            for (const div of document.querySelectorAll("div")) {
+                if (div.childElementCount !== 0) continue;
                 const txt = div.textContent?.trim() ?? "";
                 const val = parseNum(div.nextElementSibling?.textContent?.trim() ?? "");
                 if (txt === "Lifetime") lifetime = val;

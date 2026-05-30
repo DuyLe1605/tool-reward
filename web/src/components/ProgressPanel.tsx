@@ -7,9 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Activity, Monitor, Smartphone, X } from "lucide-react";
+import { Activity, Monitor, Smartphone, Tag, X } from "lucide-react";
 
-function PointsDetailDialog({ name, pts, onClose }: { name: string; pts: PointsSummary; onClose: () => void }) {
+function PointsDetailDialog({
+    name,
+    email,
+    pts,
+    onClose,
+}: {
+    name: string;
+    email?: string;
+    pts: PointsSummary;
+    onClose: () => void;
+}) {
     return (
         <div
             className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-end sm:justify-center z-50"
@@ -20,7 +30,10 @@ function PointsDetailDialog({ name, pts, onClose }: { name: string; pts: PointsS
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-start gap-2 px-5 pt-4 pb-3 sticky top-0 bg-card border-b border-border">
-                    <h2 className="flex-1 text-base font-semibold pt-0.5">{name}</h2>
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-base font-semibold">{name}</h2>
+                        {email && <p className="text-xs text-muted-foreground truncate mt-0.5">{email}</p>}
+                    </div>
                     <button onClick={onClose} className="rounded-full p-1 hover:bg-accent -mr-1">
                         <X className="w-5 h-5" />
                     </button>
@@ -68,7 +81,10 @@ function PointsDetailDialog({ name, pts, onClose }: { name: string; pts: PointsS
                                 )}
                             </div>
                             <div className="px-4 py-3 flex items-center justify-between">
-                                <span>Offers</span>
+                                <span className="flex items-center gap-2">
+                                    <Tag className="w-4 h-4 text-muted-foreground" />
+                                    Offers
+                                </span>
                                 <span className="font-semibold">{pts.offers ?? 0}</span>
                             </div>
                         </div>
@@ -114,10 +130,13 @@ function PointsDetailDialog({ name, pts, onClose }: { name: string; pts: PointsS
 
 export function ProgressPanel() {
     const { data: status } = useQuery({ queryKey: ["status"], queryFn: api.getStatus, refetchInterval: 2000 });
+    const { data: profiles } = useQuery({ queryKey: ["profiles"], queryFn: api.getProfiles });
     const wsProgress = useAppStore((s) => s.progress);
     const allPoints = useAppStore((s) => s.points);
     const running = status?.running ?? false;
     const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+
+    const emailByName = Object.fromEntries((profiles ?? []).map((p) => [p.name, p.email]));
 
     const merged = { ...(status?.progress ?? {}), ...wsProgress };
     const runningEntries = Object.entries(merged);
@@ -197,21 +216,28 @@ export function ProgressPanel() {
                                         onClick={() => setSelectedProfile(name)}
                                         className="w-full px-4 py-2.5 hover:bg-accent/40 transition-colors text-left"
                                     >
-                                        <div className="flex items-baseline justify-between gap-2 mb-1.5">
-                                            <span className="text-sm font-medium truncate">{name}</span>
-                                            <span className="text-base font-semibold shrink-0 tabular-nums text-foreground">
+                                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-medium truncate">{name}</div>
+                                                {emailByName[name] && (
+                                                    <div className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
+                                                        {emailByName[name]}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <span className="text-base font-semibold shrink-0 tabular-nums text-foreground pt-0.5">
                                                 {pts.today > 0 ? pts.today : "—"}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="flex-1 h-[3px] bg-muted rounded-full overflow-hidden">
                                                 <div
-                                                    className={`h-full rounded-full transition-all ${full ? "bg-emerald-500/70" : "bg-muted-foreground/40"}`}
+                                                    className={`h-full rounded-full transition-all ${full ? "bg-emerald-500/70" : "bg-sky-500/60"}`}
                                                     style={{ width: `${pct}%` }}
                                                 />
                                             </div>
                                             <span
-                                                className={`text-[10px] font-mono shrink-0 w-11 text-right ${full ? "text-emerald-500/80" : "text-muted-foreground/60"}`}
+                                                className={`text-[10px] font-mono shrink-0 w-11 text-right ${full ? "text-emerald-500/80" : "text-sky-400/80"}`}
                                             >
                                                 {pts.desktop || "—"}
                                             </span>
@@ -227,6 +253,7 @@ export function ProgressPanel() {
             {selectedProfile && allPoints[selectedProfile] && (
                 <PointsDetailDialog
                     name={selectedProfile}
+                    email={emailByName[selectedProfile]}
                     pts={allPoints[selectedProfile]}
                     onClose={() => setSelectedProfile(null)}
                 />
