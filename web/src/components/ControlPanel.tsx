@@ -166,7 +166,10 @@ export function ControlPanel() {
                     <Button
                         variant="destructive"
                         className="w-full gap-2 mt-1"
-                        onClick={() => { setStopping(true); stopMutation.mutate(); }}
+                        onClick={() => {
+                            setStopping(true);
+                            stopMutation.mutate();
+                        }}
                         disabled={stopping}
                     >
                         {stopping ? (
