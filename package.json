@@ -1,11 +1,25 @@
 {
+  "name": "bing-rewards-tool",
   "description": "Microsoft Rewards Auto Search Tool",
+  "version": "9.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "ts-node --project tsconfig.json src/cli.ts",
+    "web": "ts-node --project tsconfig.json server/index.ts",
+    "web:build": "cd web && npm run build",
+    "dev": "cd web && npm run dev"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "playwright": "^1.59.1",
-    "playwright-core": "^1.59.1"
+    "playwright-core": "^1.59.1",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.9.1",
+    "@types/ws": "^8.18.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
   }
 }
