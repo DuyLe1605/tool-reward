@@ -1,0 +1,68 @@
+{
+  "lastCheckedDate": "Sat May 30 2026",
+  "points": {
+    "Profile 1": {
+      "today": 96,
+      "desktop": "90/90",
+      "mobile": "6/60",
+      "offers": 0,
+      "lifetime": 88856,
+      "thisMonth": 6454,
+      "thisYear": 18220
+    },
+    "Profile 2": {
+      "today": 90,
+      "desktop": "90/90",
+      "mobile": "0/60",
+      "offers": 0,
+      "lifetime": 33798,
+      "thisMonth": 3988,
+      "thisYear": 14443
+    },
+    "Profile 4": {
+      "today": 15,
+      "desktop": "15/90",
+      "mobile": "0/60",
+      "offers": 0,
+      "lifetime": 3676,
+      "thisMonth": 3676,
+      "thisYear": 3676
+    },
+    "Profile 3": {
+      "today": 65,
+      "desktop": "33/90",
+      "mobile": "0/60",
+      "offers": 0,
+      "lifetime": 3431,
+      "thisMonth": 3431,
+      "thisYear": 3431
+    },
+    "Profile 5": {
+      "today": 65,
+      "desktop": "33/90",
+      "mobile": "0/60",
+      "offers": 0,
+      "lifetime": 3513,
+      "thisMonth": 3513,
+      "thisYear": 3513
+    },
+    "Profile 6": {
+      "today": 31,
+      "desktop": "9/90",
+      "mobile": "0/60",
+      "offers": 0,
+      "lifetime": 3081,
+      "thisMonth": 3081,
+      "thisYear": 3081
+    },
+    "Profile 7": {
+      "today": 44,
+      "desktop": "12/90",
+      "mobile": "0/60",
+      "offers": 0,
+      "lifetime": 2073,
+      "thisMonth": 2073,
+      "thisYear": 2073
+    }
+  }
+}
