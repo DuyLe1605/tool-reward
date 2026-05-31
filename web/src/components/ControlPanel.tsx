@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { api } from "@/api";
 import { useAppStore } from "@/store/useAppStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +49,37 @@ export function ControlPanel() {
         mutationFn: api.stopTask,
         onSuccess: () => qc.invalidateQueries({ queryKey: ["status"] }),
     });
+
+    // Toast khi có lỗi
+    useEffect(() => {
+        if (startMutation.isError) toast.error((startMutation.error as Error).message);
+    }, [startMutation.isError, startMutation.error]);
+    useEffect(() => {
+        if (checkPointsMutation.isError) toast.error((checkPointsMutation.error as Error).message);
+    }, [checkPointsMutation.isError, checkPointsMutation.error]);
+
+    // Keyboard shortcuts: Ctrl+Enter → Start/Stop, Ctrl+K → Check points
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.key === "Enter") {
+                e.preventDefault();
+                if (running) {
+                    setStopping(true);
+                    stopMutation.mutate();
+                } else if (selectedIndices.length > 0 && !startMutation.isPending) {
+                    startMutation.mutate();
+                }
+            }
+            if (e.ctrlKey && e.key === "k") {
+                e.preventDefault();
+                if (!running && selectedIndices.length > 0 && !checkPointsMutation.isPending) {
+                    checkPointsMutation.mutate();
+                }
+            }
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [running, selectedIndices, startMutation, stopMutation, checkPointsMutation]);
 
     const progressEntries = Object.values(status?.progress ?? {});
     const totalDone = progressEntries.reduce((s, p) => s + p.done, 0);
@@ -152,6 +184,7 @@ export function ControlPanel() {
                             {selectedIndices.length === 0
                                 ? "Chọn ít nhất 1 profile"
                                 : `Bắt đầu ${selectedIndices.length} profile`}
+                            <kbd className="ml-auto text-[10px] font-mono opacity-40 tracking-tight">⌃↵</kbd>
                         </Button>
                         <button
                             onClick={() => checkPointsMutation.mutate()}
@@ -160,6 +193,7 @@ export function ControlPanel() {
                         >
                             <BarChart2 className="w-3.5 h-3.5" />
                             Kiểm tra điểm
+                            <kbd className="ml-auto text-[10px] font-mono opacity-40 tracking-tight">⌃K</kbd>
                         </button>
                     </div>
                 ) : (
@@ -194,11 +228,7 @@ export function ControlPanel() {
                     </div>
                 )}
 
-                {(startMutation.isError || checkPointsMutation.isError) && (
-                    <p className="text-xs text-destructive">
-                        {((startMutation.error ?? checkPointsMutation.error) as Error).message}
-                    </p>
-                )}
+                {(startMutation.isError || checkPointsMutation.isError) && null}
             </CardContent>
         </Card>
     );

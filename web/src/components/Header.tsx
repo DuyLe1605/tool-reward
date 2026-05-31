@@ -35,7 +35,7 @@ export function Header() {
     return (
         <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10 px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shadow-sm">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-primary-foreground font-bold text-sm shadow-md shadow-primary/25">
                     R
                 </div>
                 <div>

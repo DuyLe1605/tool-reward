@@ -36,21 +36,31 @@ export function LogConsole() {
                     {logs.length === 0 ? (
                         <p className="text-xs text-muted-foreground py-4 text-center">Chưa có log...</p>
                     ) : (
-                        <div className="font-mono text-[11px] space-y-0.5">
+                        <div className="font-mono text-[11px] space-y-0.5 pt-2">
                             {logs.map((line) => (
-                                <div
-                                    key={line.id}
-                                    className={cn(
-                                        "leading-5 break-all",
-                                        line.level === "error" && "text-red-500",
-                                        line.level === "success" && "text-green-500",
-                                        line.level === "info" && "text-muted-foreground",
-                                    )}
-                                >
-                                    <span className="text-muted-foreground/50 select-none mr-1.5">
-                                        {new Date(line.timestamp).toLocaleTimeString("vi-VN", { hour12: false })}
+                                <div key={line.id} className={cn("flex items-start gap-2 leading-5 break-all")}>
+                                    <span
+                                        className={cn(
+                                            "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
+                                            line.level === "error" && "bg-red-500",
+                                            line.level === "success" && "bg-emerald-500",
+                                            line.level === "info" && "bg-muted-foreground/30",
+                                        )}
+                                    />
+                                    <span>
+                                        <span className="text-muted-foreground/50 select-none mr-1.5">
+                                            {new Date(line.timestamp).toLocaleTimeString("vi-VN", { hour12: false })}
+                                        </span>
+                                        <span
+                                            className={cn(
+                                                line.level === "error" && "text-red-400",
+                                                line.level === "success" && "text-emerald-400",
+                                                line.level === "info" && "text-muted-foreground",
+                                            )}
+                                        >
+                                            {line.message}
+                                        </span>
                                     </span>
-                                    {line.message}
                                 </div>
                             ))}
                             <div ref={bottomRef} />

@@ -42,40 +42,60 @@ export function PointsDetailDialog({ name, email, pts, onClose }: Props) {
                             <span>Points</span>
                         </div>
                         <div className="divide-y divide-border">
-                            <div className="px-4 py-3 flex items-center justify-between">
-                                <span className="flex items-center gap-2">
+                            <div className="px-4 py-3 flex items-center justify-between gap-3">
+                                <span className="flex items-center gap-2 text-sm shrink-0">
                                     <Monitor className="w-4 h-4 text-muted-foreground" />
                                     Desktop Bing search
                                 </span>
                                 {pts.desktop ? (
-                                    <span>
-                                        <span className="font-semibold">{pts.desktop.split("/")[0]}</span>
-                                        <span className="text-muted-foreground">/{pts.desktop.split("/")[1]}</span>
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-primary/60 rounded-full transition-all duration-500"
+                                                style={{
+                                                    width: `${Math.min(100, (parseInt(pts.desktop) / (parseInt(pts.desktop.split("/")[1]) || 1)) * 100)}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-mono">
+                                            <span className="font-semibold">{pts.desktop.split("/")[0]}</span>
+                                            <span className="text-muted-foreground">/{pts.desktop.split("/")[1]}</span>
+                                        </span>
+                                    </div>
                                 ) : (
-                                    <span className="text-muted-foreground">—</span>
+                                    <span className="text-muted-foreground text-sm">—</span>
                                 )}
                             </div>
-                            <div className="px-4 py-3 flex items-center justify-between">
-                                <span className="flex items-center gap-2">
+                            <div className="px-4 py-3 flex items-center justify-between gap-3">
+                                <span className="flex items-center gap-2 text-sm shrink-0">
                                     <Smartphone className="w-4 h-4 text-muted-foreground" />
                                     Mobile Bing search
                                 </span>
                                 {pts.mobile ? (
-                                    <span>
-                                        <span className="font-semibold">{pts.mobile.split("/")[0]}</span>
-                                        <span className="text-muted-foreground">/{pts.mobile.split("/")[1]}</span>
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-sky-500/60 rounded-full transition-all duration-500"
+                                                style={{
+                                                    width: `${Math.min(100, (parseInt(pts.mobile) / (parseInt(pts.mobile.split("/")[1]) || 1)) * 100)}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-mono">
+                                            <span className="font-semibold">{pts.mobile.split("/")[0]}</span>
+                                            <span className="text-muted-foreground">/{pts.mobile.split("/")[1]}</span>
+                                        </span>
+                                    </div>
                                 ) : (
-                                    <span className="text-muted-foreground">—</span>
+                                    <span className="text-muted-foreground text-sm">—</span>
                                 )}
                             </div>
                             <div className="px-4 py-3 flex items-center justify-between">
-                                <span className="flex items-center gap-2">
+                                <span className="flex items-center gap-2 text-sm">
                                     <Tag className="w-4 h-4 text-muted-foreground" />
                                     Offers
                                 </span>
-                                <span className="font-semibold">{pts.offers ?? 0}</span>
+                                <span className="font-semibold text-sm">{pts.offers ?? 0}</span>
                             </div>
                         </div>
                     </div>

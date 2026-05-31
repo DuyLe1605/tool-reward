@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/api";
 import { useAppStore } from "@/store/useAppStore";
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, CheckCheck, X } from "lucide-react";
+import { Users, CheckCheck, X, AlignJustify, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -46,6 +47,7 @@ export function ProfileList() {
 
     const running = status?.running ?? false;
     const allSelected = profiles.length > 0 && selectedIndices.length === profiles.length;
+    const [compact, setCompact] = useState(false);
 
     const toggleAll = () => {
         if (running) return;
@@ -84,6 +86,15 @@ export function ProfileList() {
                             </>
                         )}
                     </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => setCompact((c) => !c)}
+                        title={compact ? "Chế độ đầy đủ" : "Chế độ gọn"}
+                    >
+                        {compact ? <AlignJustify className="w-3.5 h-3.5" /> : <List className="w-3.5 h-3.5" />}
+                    </Button>
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-hidden">
@@ -103,7 +114,8 @@ export function ProfileList() {
                                         key={p.folder}
                                         onClick={() => !running && toggle(idx)}
                                         className={cn(
-                                            "flex items-center gap-3 px-3 py-2.5 border-b border-border/50 last:border-0 transition-all cursor-pointer select-none",
+                                            "flex items-center gap-3 px-3 border-b border-border/50 last:border-0 transition-all cursor-pointer select-none",
+                                            compact ? "py-1.5" : "py-2.5",
                                             isSelected
                                                 ? "bg-primary/8 border-l-2 border-l-primary"
                                                 : "border-l-2 border-l-transparent hover:bg-muted/40",
@@ -128,9 +140,11 @@ export function ProfileList() {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-[11px] text-muted-foreground truncate leading-tight">
-                                                {p.email}
-                                            </p>
+                                            {!compact && (
+                                                <p className="text-[11px] text-muted-foreground truncate leading-tight">
+                                                    {p.email}
+                                                </p>
+                                            )}
                                             {isRunning && prog && (
                                                 <div className="flex items-center gap-2 pt-0.5">
                                                     <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">

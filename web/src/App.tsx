@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider, useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Toaster } from "sonner";
 import { Header } from "@/components/Header";
 import { ProfileList } from "@/components/ProfileList";
 import { ControlPanel } from "@/components/ControlPanel";
@@ -87,6 +88,7 @@ function AppInner() {
                     onDismiss={handleDismiss}
                 />
             )}
+            <Toaster richColors position="bottom-right" />
         </div>
     );
 }
