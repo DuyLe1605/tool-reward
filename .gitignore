@@ -14,6 +14,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Server logs
+*.log
+
 # Environment
 .env
 .env.local
@@ -24,3 +27,6 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# App data (personal data, changes every run)
+data/app-state.json

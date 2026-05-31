@@ -1,6 +1,3 @@
 @echo off
-cd /d "%~dp0"
-echo Starting Microsoft Rewards Auto Search...
-node index.js
-echo Task completed.
-pause
+chcp 65001 >nul
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run_search.ps1"

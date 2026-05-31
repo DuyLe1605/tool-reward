@@ -1,40 +1,173 @@
-# Microsoft Rewards Auto Search Tool
+# Bing Rewards Auto Search Tool
 
-Tool tự động tìm kiếm trên Bing để tích điểm Microsoft Rewards, sử dụng dữ liệu từ Wikipedia tiếng Việt.
+Công cụ tự động tích điểm Microsoft Rewards qua Bing Search.  
+Sử dụng [Playwright](https://playwright.dev/) điều khiển trình duyệt Edge thật với profile thật, kết hợp Web UI để theo dõi và điều khiển.
+
+---
 
 ## Tính năng
-- **Dữ liệu ngẫu nhiên**: Lấy bài viết ngẫu nhiên từ Wikipedia để làm từ khóa tìm kiếm.
-- **Xử lý chuỗi thông minh**: Tách từ và gộp cụm từ theo logic yêu cầu (cắt mảng 10-150 và 180-300).
-- **Mô phỏng người dùng**: Gõ phím có độ trễ, cuộn trang, và chờ đợi ngẫu nhiên giữa các lần tìm kiếm.
-- **Hỗ trợ Profile Edge**: Sử dụng Profile thực tế của bạn để giữ trạng thái đăng nhập.
 
-## Cài đặt
-1. Đảm bảo bạn đã cài đặt [Node.js](https://nodejs.org/).
-2. Mở terminal tại thư mục này.
-3. Cài đặt thư viện:
-   ```bash
-   npm install
-   ```
+- **Search tự động** cho nhiều profile Edge — desktop, mobile, hoặc cả hai
+- **Web UI realtime** theo dõi tiến độ, điểm thưởng qua WebSocket
+- **Điểm thưởng**: hiển thị điểm hôm nay, khả dụng, tiến độ desktop/mobile từng profile
+- **Hoàn thành nhiệm vụ** Daily Set Streak và Keep Earning tự động
+- Từ khóa từ Wikipedia tiếng Việt + danh sách dự phòng khi Wikipedia không khả dụng
+- Auto-dismiss cookie consent trên cả desktop và mobile browser
+- Dừng giữa chừng an toàn qua nút Stop trên UI
 
-## Cấu hình (Quan trọng)
-Mở file `index.js` và kiểm tra các thông số trong `CONFIG`:
-- `userDataDir`: Đường dẫn đến dữ liệu người dùng của Edge. Mặc định tool sẽ cố gắng lấy từ `%LOCALAPPDATA%`.
-- `profileName`: Tên profile bạn đang dùng (mặc định là `Default`).
+---
 
-**LƯU Ý**: Bạn phải **ĐÓNG TRÌNH DUYỆT EDGE** trước khi chạy tool nếu sử dụng Profile đang dùng. Nếu không, Playwright sẽ không thể truy cập vào profile đó.
+## Yêu cầu
 
-## Cách chạy
-Chạy lệnh sau trong terminal:
+- [Node.js](https://nodejs.org/) >= 18
+- Microsoft Edge đã đăng nhập tài khoản Microsoft Rewards trên các profile
+
+---
+
+## Cài đặt & Chạy
+
 ```bash
-npm start
+# Cài dependencies backend
+npm install
+
+# Cài dependencies frontend
+cd web && npm install && npm run build && cd ..
+
+# Khởi động server (backend + serve frontend)
+npm run web
 ```
 
-## Lên lịch tự động (Windows Task Scheduler)
-1. Mở **Task Scheduler**.
-2. Chọn **Create Basic Task**.
-3. Đặt tên (ví dụ: `AutoRewards`).
-4. Chọn thời gian chạy (Daily).
-5. Action: **Start a Program**.
-6. Program/script: `node`.
-7. Add arguments: `index.js` (hoặc đường dẫn tuyệt đối đến file).
-8. Start in: Đường dẫn thư mục chứa tool này.
+Sau đó mở trình duyệt tại `http://localhost:3000`
+
+---
+
+## Cấu trúc dự án
+
+```
+server/
+  index.ts        ← Entry point Express server, serve web/dist/
+  routes.ts       ← REST API: /api/status, /api/profiles, /api/start, /api/stop, ...
+  stateStore.ts   ← Lưu trạng thái app vào data/app-state.json
+  taskManager.ts  ← Quản lý task đang chạy, progress từng profile
+  ws.ts           ← WebSocket server — push log/progress/points realtime
+
+src/
+  config.ts       ← Cấu hình trung tâm: URL, delay, đường dẫn Edge
+  utils.ts        ← sleep, copyDirRecursive, AbortSignal
+  profiles.ts     ← Đọc profile Edge từ Local State
+  wiki.ts         ← fetchRobustWikiText() + getFallbackText()
+  browser.ts      ← dismissCookieConsent, setupCookieConsentHandler, handleActivityContent
+  rewards.ts      ← completeRewardsActivities() — Daily Set + Keep Earning
+  pointsScraper.ts← scrapeAvailablePoints, scrapeRewardsPoints, fetchAndEmitPoints
+  checkPoints.ts  ← Kiểm tra điểm không search (nút "Kiểm tra điểm")
+  search.ts       ← Luồng search chính: mobile-only / desktop / both
+  logger.ts       ← log(), emitProgress(), emitPoints(), emitLog() qua EventEmitter
+  taskController.ts← shouldStop flag, context registry
+  wakeLock.ts     ← Giữ màn hình không tắt (Windows)
+  cli.ts          ← CLI legacy (không dùng khi chạy web)
+
+web/src/
+  App.tsx                   ← Layout chính
+  store/useAppStore.ts      ← Zustand store: progress, points, logs
+  hooks/useWebSocket.ts     ← Nhận realtime từ server WebSocket
+  components/
+    ControlPanel.tsx        ← Chọn profile, chế độ search, nút Start/Stop
+    ProgressPanel.tsx       ← Tiến độ search + bảng điểm thưởng
+    LogConsole.tsx          ← Console log realtime
+    PointsDetailDialog.tsx  ← Chi tiết điểm từng profile
+    Header.tsx              ← Trạng thái kết nối, dark mode
+  api/index.ts              ← REST API client
+
+data/
+  app-state.json  ← Lưu trạng thái điểm thưởng giữa các lần chạy
+```
+
+---
+
+## Kiến trúc luồng dữ liệu
+
+```
+Browser UI ←──WebSocket──→ server/ws.ts ←── logEmitter (src/logger.ts)
+     │                                              ↑
+     └──REST API──→ server/routes.ts         src/search.ts
+                         │                   src/rewards.ts
+                         └── taskManager.ts  src/checkPoints.ts
+                                  │
+                              Playwright → Edge/Chromium
+```
+
+---
+
+## Luồng search
+
+### Mobile-only
+
+1. Mở Edge headless → lấy cookies → đóng
+2. `performMobileSearch(cookies)` — Chromium với Android UA
+3. Mở Edge headless:false → `fetchAndEmitPoints` → đóng
+
+### Desktop-only
+
+1. Mở Edge → search loop (90 lượt)
+2. `completeRewardsActivities` — nhiệm vụ Rewards + `fetchAndEmitPoints`
+3. Đóng Edge
+
+### Both
+
+1. Desktop search (90 lượt)
+2. `completeRewardsActivities` + emit điểm lần 1
+3. Đóng Edge → `performMobileSearch` (60 lượt)
+4. Mở Edge mới → `fetchAndEmitPoints` → emit điểm lần 2 (cập nhật mobile count + available)
+
+---
+
+## Cập nhật điểm — pipeline
+
+`fetchAndEmitPoints(page, profileName)` trong `src/pointsScraper.ts`:
+
+```
+goto(rewards.bing.com/)
+  → waitForDashboard
+  → scrapeAvailablePoints()   ← "Available points" card trên dashboard
+  → goto(/earn)
+  → scrapeRewardsPoints()     ← mở flyout "Points breakdown"
+  → merge available vào kết quả
+  → emitPoints() → WebSocket → UI
+```
+
+Gọi từ: `checkPoints.ts`, `rewards.ts` (cuối desktop), `search.ts` (sau mobile).
+
+---
+
+## Selector cần theo dõi khi Microsoft đổi giao diện
+
+| Thành phần             | File               | Selector hiện tại                                                                      |
+| ---------------------- | ------------------ | -------------------------------------------------------------------------------------- |
+| Cookie consent desktop | `browser.ts`       | `#bnp_btn_accept a`, `#bnp_btn_accept`                                                 |
+| Cookie consent mobile  | `search.ts`        | `button:has-text("Accept")`, `button:has-text("Accept all")`                           |
+| Thanh tìm kiếm Bing    | `search.ts`        | `textarea[name="q"], input[name="q"]`                                                  |
+| Nút Daily Set Streak   | `rewards.ts`       | `text="Daily Set Streak"`, `button.rounded-cornerCardDefault`                          |
+| Flyout dialog          | `rewards.ts`       | `section[role="dialog"]`, `.bg-flyout`                                                 |
+| Card đã xong           | `rewards.ts`       | class `bg-statusSuccessRewardsBg`, icon `mee-icon-CheckMark`                           |
+| Nút Points breakdown   | `pointsScraper.ts` | `button:has-text("Points breakdown")`                                                  |
+| Available points card  | `pointsScraper.ts` | `p[text="Available points"]` → `parentElement.parentElement` → `[class*="pageHeader"]` |
+
+---
+
+## Cấu hình (`src/config.ts`)
+
+| Key                     | Mô tả                                 |
+| ----------------------- | ------------------------------------- |
+| `userDataDir`           | Đường dẫn User Data của Edge          |
+| `rewardsUrl`            | `https://rewards.bing.com/earn`       |
+| `minDelay` / `maxDelay` | Delay ngẫu nhiên giữa các search (ms) |
+| `port`                  | Port HTTP server (mặc định 3000)      |
+
+---
+
+## Khi có vấn đề
+
+- **Available points = 0**: Microsoft có thể đã đổi class `text-pageHeader` trên dashboard → kiểm tra selector trong `pointsScraper.ts → scrapeAvailablePoints()`
+- **Cookie consent không tự đóng (mobile)**: Kiểm tra text nút trong `search.ts → mobileConsentSelectors`
+- **Search bị treo**: Wikipedia trả về bài quá ngắn → `wiki.ts` tự retry 3 lần rồi dùng fallback keywords
+- **Profile không tìm thấy**: Edge đổi cấu trúc `Local State` → sửa `profiles.ts → getEdgeProfiles()`
