@@ -55,11 +55,11 @@ Chọn **"Read and write permissions"** → Save.
 
 ### Không cần làm gì thêm
 
-| Thứ | Cần setup? | Lý do |
-|---|---|---|
-| `GH_TOKEN` / `GITHUB_TOKEN` | Không | GitHub tự tạo cho mỗi workflow run |
-| Code signing certificate | Không bắt buộc | App vẫn chạy được, chỉ Windows SmartScreen warning |
-| Secrets khác | Không | |
+| Thứ                         | Cần setup?     | Lý do                                              |
+| --------------------------- | -------------- | -------------------------------------------------- |
+| `GH_TOKEN` / `GITHUB_TOKEN` | Không          | GitHub tự tạo cho mỗi workflow run                 |
+| Code signing certificate    | Không bắt buộc | App vẫn chạy được, chỉ Windows SmartScreen warning |
+| Secrets khác                | Không          |                                                    |
 
 ---
 
@@ -153,18 +153,22 @@ Update app **không đụng đến thư mục này** — dữ liệu được gi
 ## Troubleshooting
 
 ### Build lỗi "icon.ico not found"
+
 → Tạo file `assets/icon.ico` (xem hướng dẫn ở trên)
 
 ### Windows SmartScreen cảnh báo khi user chạy .exe
+
 → Bình thường nếu app chưa có code signing certificate.  
-   User click "More info" → "Run anyway" là xong.  
-   Để loại bỏ hoàn toàn: mua EV Code Signing Certificate (~$300/năm).
+ User click "More info" → "Run anyway" là xong.  
+ Để loại bỏ hoàn toàn: mua EV Code Signing Certificate (~$300/năm).
 
 ### Auto-update không hoạt động
+
 - Kiểm tra GitHub Release có file `latest.yml` không
 - Kiểm tra `package.json > build > publish > owner` và `repo` đúng chưa
 - Log của electron-updater ở: `%APPDATA%\Rewards Tool\logs\main.log`
 
 ### GitHub Actions fail
+
 - Vào **Actions tab** → click vào run đỏ → xem log bước nào lỗi
 - Lỗi thường gặp: thiếu `assets/icon.ico`, TypeScript compile error

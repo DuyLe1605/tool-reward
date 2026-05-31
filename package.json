@@ -11,6 +11,7 @@
         "build:server": "tsc --project tsconfig.json",
         "build:electron": "tsc --project tsconfig.electron.json",
         "electron:dev": "npm run build:electron && electron .",
+        "release:local": "npm run build:server && npm run web:build && npm run build:electron && electron-builder --dir --publish never",
         "release:build": "npm run build:server && npm run web:build && npm run build:electron && electron-builder --publish never",
         "release:publish": "npm run build:server && npm run web:build && npm run build:electron && electron-builder --publish always"
     },
