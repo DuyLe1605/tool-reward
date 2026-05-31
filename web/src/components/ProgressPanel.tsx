@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/api";
 import { useAppStore } from "@/store/useAppStore";
+import type { ProfileProgress } from "@/store/useAppStore";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -47,7 +48,27 @@ export function ProgressPanel() {
 
     const nameByEmail = Object.fromEntries((profiles ?? []).map((p) => [p.email, p.name]));
 
-    const merged = { ...(status?.progress ?? {}), ...wsProgress };
+    const merged: Record<string, ProfileProgress> = {};
+    {
+        const httpProgress = status?.progress ?? {};
+        const allNames = new Set([...Object.keys(httpProgress), ...Object.keys(wsProgress)]);
+        for (const name of allNames) {
+            const http = httpProgress[name];
+            const ws = wsProgress[name];
+            if (http && ws) {
+                // Totals luôn lấy từ HTTP (server biết ngay từ đầu task),
+                // done counts lấy từ WS (realtime hơn HTTP polling)
+                merged[name] = {
+                    ...http,
+                    done: ws.done,
+                    desktopDone: ws.desktopDone,
+                    mobileDone: ws.mobileDone,
+                };
+            } else {
+                merged[name] = http ?? ws!;
+            }
+        }
+    }
     const runningEntries = Object.entries(merged);
 
     const pointEntries = Object.entries(allPoints).sort((a, b) => {
@@ -88,13 +109,15 @@ export function ProgressPanel() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {runningEntries.map(([name, prog]) => {
+                            const dTotal = prog.desktopTotal ?? 0;
+                            const mTotal = prog.mobileTotal ?? 0;
+                            const hasBoth = dTotal > 0 && mTotal > 0;
+                            const desktopOnly = dTotal > 0 && mTotal === 0;
+                            const mobileOnly = mTotal > 0 && dTotal === 0;
+                            const dSlotPct = hasBoth && prog.total > 0 ? (dTotal / prog.total) * 100 : 100;
+                            const dFillPct = dTotal > 0 ? ((prog.desktopDone ?? 0) / dTotal) * 100 : 0;
+                            const mFillPct = mTotal > 0 ? ((prog.mobileDone ?? 0) / mTotal) * 100 : 0;
                             const pct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
-                            const hasBoth = (prog.desktopTotal ?? 0) > 0 && (prog.mobileTotal ?? 0) > 0;
-                            const dSlotPct = prog.total > 0 ? ((prog.desktopTotal ?? 0) / prog.total) * 100 : 50;
-                            const dFillPct =
-                                (prog.desktopTotal ?? 0) > 0 ? ((prog.desktopDone ?? 0) / prog.desktopTotal) * 100 : 0;
-                            const mFillPct =
-                                (prog.mobileTotal ?? 0) > 0 ? ((prog.mobileDone ?? 0) / prog.mobileTotal) * 100 : 0;
                             return (
                                 <div key={name}>
                                     <div className="flex justify-between text-xs mb-1.5">
@@ -116,24 +139,26 @@ export function ProgressPanel() {
                                             className="flex-1 h-2 rounded-full bg-muted overflow-hidden flex"
                                             style={{ gap: "1px" }}
                                         >
-                                            {/* Segment Desktop */}
-                                            <div
-                                                className="h-full relative overflow-hidden"
-                                                style={{ width: hasBoth ? `${dSlotPct}%` : "100%" }}
-                                                title={`Desktop: ${prog.desktopDone ?? 0}/${prog.desktopTotal ?? 0}`}
-                                            >
-                                                <motion.div
-                                                    className="absolute inset-y-0 left-0 bg-sky-500"
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: `${dFillPct}%` }}
-                                                    transition={{ type: "spring", stiffness: 60, damping: 18 }}
-                                                />
-                                            </div>
-                                            {/* Segment Mobile */}
-                                            {hasBoth && (
+                                            {/* Desktop segment — chỉ render khi có desktop */}
+                                            {(hasBoth || desktopOnly) && (
+                                                <div
+                                                    className="h-full relative overflow-hidden"
+                                                    style={{ width: hasBoth ? `${dSlotPct}%` : "100%" }}
+                                                    title={`Desktop: ${prog.desktopDone ?? 0}/${dTotal}`}
+                                                >
+                                                    <motion.div
+                                                        className="absolute inset-y-0 left-0 bg-sky-500"
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${dFillPct}%` }}
+                                                        transition={{ type: "spring", stiffness: 60, damping: 18 }}
+                                                    />
+                                                </div>
+                                            )}
+                                            {/* Mobile segment — chỉ render khi có mobile */}
+                                            {(hasBoth || mobileOnly) && (
                                                 <div
                                                     className="h-full relative overflow-hidden flex-1"
-                                                    title={`Mobile: ${prog.mobileDone ?? 0}/${prog.mobileTotal ?? 0}`}
+                                                    title={`Mobile: ${prog.mobileDone ?? 0}/${mTotal}`}
                                                 >
                                                     <motion.div
                                                         className="absolute inset-y-0 left-0 bg-violet-500"
@@ -145,26 +170,24 @@ export function ProgressPanel() {
                                             )}
                                         </div>
                                         <span className="text-[10px] font-mono tabular-nums shrink-0">
-                                            <span
-                                                className={cn(
-                                                    dFillPct >= 100 ? "text-emerald-400/70" : "text-sky-400/60",
-                                                )}
-                                            >
-                                                {prog.desktopDone ?? 0}/{prog.desktopTotal ?? 0}
-                                            </span>
-                                            {hasBoth && (
-                                                <>
-                                                    <span className="mx-1 text-muted-foreground/20">·</span>
-                                                    <span
-                                                        className={cn(
-                                                            mFillPct >= 100
-                                                                ? "text-fuchsia-400/70"
-                                                                : "text-violet-400/60",
-                                                        )}
-                                                    >
-                                                        {prog.mobileDone ?? 0}/{prog.mobileTotal ?? 0}
-                                                    </span>
-                                                </>
+                                            {(hasBoth || desktopOnly) && (
+                                                <span
+                                                    className={cn(
+                                                        dFillPct >= 100 ? "text-emerald-400/70" : "text-sky-400/60",
+                                                    )}
+                                                >
+                                                    {prog.desktopDone ?? 0}/{dTotal}
+                                                </span>
+                                            )}
+                                            {hasBoth && <span className="mx-1 text-muted-foreground/20">·</span>}
+                                            {(hasBoth || mobileOnly) && (
+                                                <span
+                                                    className={cn(
+                                                        mFillPct >= 100 ? "text-fuchsia-400/70" : "text-violet-400/60",
+                                                    )}
+                                                >
+                                                    {prog.mobileDone ?? 0}/{mTotal}
+                                                </span>
                                             )}
                                         </span>
                                     </div>

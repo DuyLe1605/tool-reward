@@ -14,6 +14,10 @@ Sử dụng [Playwright](https://playwright.dev/) điều khiển trình duyệt
 - Từ khóa từ Wikipedia tiếng Việt + danh sách dự phòng khi Wikipedia không khả dụng
 - Auto-dismiss cookie consent trên cả desktop và mobile browser
 - Dừng giữa chừng an toàn qua nút Stop trên UI
+- **[v9.0.5]** Log console tô màu tên profile — mỗi profile một màu riêng, dễ theo dõi song song
+- **[v9.0.5]** Progress bar split — thanh xanh (desktop) + tím (mobile), hiển thị đúng từ đầu với mọi chế độ
+- **[v9.0.5]** System tray — thu nhỏ xuống tray thay vì đóng app, click để mở lại
+- **[v9.0.5]** Desktop notification khi task hoàn thành — hiển thị số profile và tổng điểm kiếm được
 
 ---
 
