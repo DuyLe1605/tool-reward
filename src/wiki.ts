@@ -13,7 +13,7 @@ import { CONFIG } from "./config";
  */
 export async function fetchRobustWikiText(): Promise<string> {
     try {
-        const randomRes = await fetch(CONFIG.wikiApiUrl);
+        const randomRes = await fetch(CONFIG.wikiApiUrl, { signal: AbortSignal.timeout(8000) });
         const randomData = (await randomRes.json()) as {
             query: { random: Array<{ title: string }> };
         };
@@ -21,6 +21,7 @@ export async function fetchRobustWikiText(): Promise<string> {
 
         const contentRes = await fetch(
             `https://vi.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext&exintro=0&titles=${encodeURIComponent(title)}&format=json&origin=*`,
+            { signal: AbortSignal.timeout(8000) },
         );
         const contentData = (await contentRes.json()) as {
             query: { pages: Record<string, { extract?: string }> };

@@ -8,19 +8,14 @@
 
 import { spawn, type ChildProcess } from "child_process";
 
-// PowerShell script: gọi SetThreadExecutionState mỗi 30 giây cho đến khi bị kill
+// PowerShell script: Gửi Shift+F15 mỗi 59 giây để reset Windows idle timer.
+// Cách này không cần compile Add-Type, khởi động ngay lập tức.
+// Shift+F15 là tổ hợp phím vô hại (không có app nào dùng F15).
 const KEEP_AWAKE_SCRIPT = `
-Add-Type -TypeDefinition @"
-using System.Runtime.InteropServices;
-public class WakeLock {
-    [DllImport("kernel32.dll")]
-    public static extern uint SetThreadExecutionState(uint esFlags);
-}
-"@
-# ES_CONTINUOUS(0x80000000) | ES_DISPLAY_REQUIRED(0x00000002) | ES_SYSTEM_REQUIRED(0x00000001)
-while (\$true) {
-    [WakeLock]::SetThreadExecutionState(0x80000003) | Out-Null
-    Start-Sleep -Seconds 30
+$wsh = New-Object -ComObject WScript.Shell
+while ($true) {
+    $wsh.SendKeys('+{F15}')
+    Start-Sleep -Seconds 59
 }
 `.trim();
 

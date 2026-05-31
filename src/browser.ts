@@ -19,10 +19,17 @@ import { log } from "./logger";
 export async function dismissCookieConsent(page: Page): Promise<void> {
     try {
         // ID chính xác của nút Accept trong popup cookie Bing
-        const selectors = ["#bnp_btn_accept", 'button:has-text("Accept")', 'button:has-text("Accept all")'];
+        // Cookie consent của Bing: <div id="bnp_btn_accept"><a>Accept</a></div>
+        // Phải click vào thẻ <a> bên trong, không phải div bọc ngoài
+        const selectors = [
+            "#bnp_btn_accept a",
+            "#bnp_btn_accept",
+            'button:has-text("Accept")',
+            'button:has-text("Accept all")',
+        ];
         for (const sel of selectors) {
             const btn = page.locator(sel).first();
-            if (await btn.isVisible({ timeout: 1500 }).catch(() => false)) {
+            if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
                 await btn.click().catch(() => {});
                 await sleep(500);
                 return;

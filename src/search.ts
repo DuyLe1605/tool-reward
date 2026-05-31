@@ -14,7 +14,7 @@ import os from "os";
 import { CONFIG } from "./config";
 import { sleep, copyDirRecursive } from "./utils";
 import { fetchRobustWikiText } from "./wiki";
-import { dismissCookieConsent, setupCookieConsentHandler } from "./browser";
+import { dismissCookieConsent } from "./browser";
 import { completeRewardsActivities } from "./rewards";
 import { log, emitProgress } from "./logger";
 import { taskController } from "./taskController";
@@ -76,6 +76,7 @@ export async function performProfileTask(
                 "--disable-infobars",
             ],
         });
+        taskController.registerContext(context);
 
         const page = await context.newPage();
 
@@ -93,9 +94,10 @@ export async function performProfileTask(
 
         await page.goto("https://www.bing.com");
         await dismissCookieConsent(page);
-        await setupCookieConsentHandler(page);
         log(`${prefix} Đang chờ ổn định tài khoản (5s)...`);
         await sleep(5000, sig());
+        // Dismiss lần 2 sau khi page ổn định — cookie popup thường render chậm hơn load event
+        await dismissCookieConsent(page);
 
         let totalSearched = 0;
 
@@ -148,8 +150,10 @@ export async function performProfileTask(
                     log(`${prefix} Nghỉ ${waitTime / 1000}s...`);
                     await sleep(waitTime, sig());
                 } catch (err) {
-                    log(`${prefix} Lỗi search: ${(err as Error).message} — bỏ qua, tiếp tục`);
-                    // Không break — tiếp tục search tiếp thay vì bỏ cả phiên
+                    const msg = (err as Error).message;
+                    log(`${prefix} Lỗi search: ${msg} — bỏ qua, tiếp tục`);
+                    // Nếu browser/context đã đóng thì không recover được — thoát luôn
+                    if (msg.includes("closed")) break outer;
                     await page
                         .goto("https://www.bing.com", { waitUntil: "domcontentloaded", timeout: 15000 })
                         .catch(() => {});
@@ -167,6 +171,7 @@ export async function performProfileTask(
         }
 
         log(`\n<<< HOÀN THÀNH: ${prefix}`);
+        taskController.unregisterContext(context);
         await context.close();
     } catch (err) {
         log(`${prefix} LỖI NGHIÊM TRỌNG: ${(err as Error).message}`);
