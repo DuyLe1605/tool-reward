@@ -129,6 +129,64 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
 }
 
 /**
+ * Claim pending points từ nút "Ready to claim" trên dashboard.
+ *
+ * Flow:
+ *   1. Tìm nút "Ready to claim" trên dashboard (có số điểm đang pending)
+ *   2. Click để mở flyout dialog "Claim points"
+ *   3. Trong dialog, click nút "Claim points" (brand button)
+ *   4. Đóng dialog — bỏ qua "Earn more points"
+ */
+async function claimPendingPoints(page: Page): Promise<void> {
+    try {
+        // Tìm nút "Ready to claim" — chứa text đó trên dashboard
+        const claimTrigger = page
+            .locator('button, [role="button"], [data-react-aria-pressable="true"]')
+            .filter({ hasText: /ready to claim/i })
+            .first();
+
+        const isVisible = await claimTrigger.isVisible({ timeout: 3000 }).catch(() => false);
+        if (!isVisible) {
+            log("Không có điểm pending cần claim.");
+            return;
+        }
+
+        log("Đang claim điểm pending...");
+        await claimTrigger.click().catch(() => {});
+
+        // Chờ flyout dialog "Claim points" xuất hiện
+        const dialog = page.locator('section[role="dialog"]').filter({ hasText: /claim points/i }).first();
+        await dialog.waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+        await sleep(1000);
+
+        // Click nút "Claim points" (brand button trong footer dialog)
+        const claimBtn = dialog
+            .locator('button[data-react-aria-pressable="true"]')
+            .filter({ hasText: /^claim points$/i })
+            .first();
+
+        if (await claimBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+            await claimBtn.click().catch(() => {});
+            log("✅ Đã claim điểm pending.");
+            await sleep(2000);
+        } else {
+            log("⚠️  Không tìm thấy nút claim trong dialog.");
+        }
+
+        // Đóng dialog — bỏ qua "Earn more points"
+        const closeBtn = dialog.locator('button[aria-label="Close"]').first();
+        if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await closeBtn.click().catch(() => {});
+        } else {
+            await page.keyboard.press("Escape");
+        }
+        await sleep(1000);
+    } catch (err) {
+        log(`⚠️  Lỗi khi claim điểm: ${(err as Error).message}`);
+    }
+}
+
+/**
  * Điều hướng đến trang Rewards và hoàn thành tất cả nhiệm vụ có thể tự động hóa.
  */
 export async function completeRewardsActivities(page: Page, profileName = "", profileEmail = ""): Promise<void> {
@@ -225,6 +283,9 @@ export async function completeRewardsActivities(page: Page, profileName = "", pr
         }
 
         log("\n--- HOÀN THÀNH REWARDS ---");
+
+        // ── Claim pending points ──────────────────────────────────────────────
+        await claimPendingPoints(page);
 
         // Scrape điểm sau khi hoàn thành tất cả tasks
         if (profileName) {
