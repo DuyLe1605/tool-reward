@@ -13,6 +13,7 @@ export function ProgressPanel() {
     const { data: profiles } = useQuery({ queryKey: ["profiles"], queryFn: api.getProfiles });
     const wsProgress = useAppStore((s) => s.progress);
     const allPoints = useAppStore((s) => s.points);
+    const lastCheckedDate = useAppStore((s) => s.lastCheckedDate);
     const running = status?.running ?? false;
     const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
 
@@ -83,7 +84,12 @@ export function ProgressPanel() {
             {pointEntries.length > 0 && (
                 <Card className="overflow-hidden">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">🪙 Điểm thưởng</CardTitle>
+                        <CardTitle className="text-sm flex items-center justify-between">
+                            <span>🪙 Điểm thưởng</span>
+                            {lastCheckedDate && (
+                                <span className="text-[10px] font-normal text-muted-foreground">{lastCheckedDate}</span>
+                            )}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y divide-border">
