@@ -32,7 +32,11 @@ function findFreePort(preferred: number): Promise<number> {
 }
 
 async function main(): Promise<void> {
-    const port = await findFreePort(PREFERRED_PORT);
+    // Khi chạy trong Electron, APP_SERVER_PORT được set cố định → dùng luôn, không cần findFreePort
+    // Khi chạy CLI standalone → tìm cổng trống tự động
+    const port = process.env.APP_SERVER_PORT
+        ? Number(process.env.APP_SERVER_PORT)
+        : await findFreePort(PREFERRED_PORT);
 
     const app = express();
     app.use(express.json());

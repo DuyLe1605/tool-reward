@@ -23,7 +23,7 @@
  *   - Không cần bundle browser binary vào installer
  */
 
-import { app, BrowserWindow, shell, dialog, nativeImage } from "electron";
+import { app, BrowserWindow, shell, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
 import log from "electron-log";
 import path from "path";
@@ -39,10 +39,40 @@ process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 const SERVER_PORT = 3789;
 let mainWindow: BrowserWindow | null = null;
 
+// ── Single instance lock ──────────────────────────────────────────────────
+// Nếu user mở app lần 2, focus lại cửa sổ cũ và thoát instance mới
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+    app.quit();
+}
+app.on("second-instance", () => {
+    if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+    }
+});
+
+// ── Bắt lỗi không mong đợi từ server module (vd: EADDRINUSE) ─────────────
+// Phải đăng ký TRƯỚC khi import server để bắt được lỗi async của server.listen
+process.on("uncaughtException", (err: NodeJS.ErrnoException) => {
+    log.error("[uncaughtException]", err);
+    if (err.code === "EADDRINUSE") {
+        dialog.showErrorBox(
+            "App đã đang chạy",
+            `Cổng ${SERVER_PORT} đã bị chiếm.\n\nRewards Tool có thể đã mở rồi — kiểm tra thanh taskbar.\nNếu không thấy, hãy restart máy và thử lại.`,
+        );
+    } else {
+        dialog.showErrorBox("Lỗi không mong đợi", `${err.message}\n\nLog: ${log.transports.file.getFile().path}`);
+    }
+    app.quit();
+});
+
 // ── Khởi động Express server ──────────────────────────────────────────────
 async function startServer(): Promise<void> {
     // Đặt data dir TRƯỚC KHI import server, để stateStore.ts nhận đúng path
     process.env.APP_DATA_DIR = app.getPath("userData");
+    // Truyền port cố định cho server — bỏ qua findFreePort để tránh race condition
+    process.env.APP_SERVER_PORT = String(SERVER_PORT);
     log.info(`[main] APP_DATA_DIR = ${process.env.APP_DATA_DIR}`);
 
     if (app.isPackaged) {
