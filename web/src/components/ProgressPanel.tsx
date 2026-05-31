@@ -5,7 +5,6 @@ import { api } from "@/api";
 import { useAppStore } from "@/store/useAppStore";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Activity, TrendingUp } from "lucide-react";
 import { PointsDetailDialog } from "@/components/PointsDetailDialog";
@@ -112,26 +111,26 @@ export function ProgressPanel() {
                                             </span>
                                         </span>
                                     </div>
-                                    {hasBoth ? (
-                                        <>
+                                    <div className="flex items-center gap-2.5">
+                                        <div
+                                            className="flex-1 h-2 rounded-full bg-muted overflow-hidden flex"
+                                            style={{ gap: "1px" }}
+                                        >
+                                            {/* Segment Desktop */}
                                             <div
-                                                className="h-2 w-full rounded-full bg-muted overflow-hidden flex"
-                                                style={{ gap: "1px" }}
+                                                className="h-full relative overflow-hidden"
+                                                style={{ width: hasBoth ? `${dSlotPct}%` : "100%" }}
+                                                title={`Desktop: ${prog.desktopDone ?? 0}/${prog.desktopTotal ?? 0}`}
                                             >
-                                                {/* Segment Desktop */}
-                                                <div
-                                                    className="h-full relative overflow-hidden"
-                                                    style={{ width: `${dSlotPct}%` }}
-                                                    title={`Desktop: ${prog.desktopDone ?? 0}/${prog.desktopTotal ?? 0}`}
-                                                >
-                                                    <motion.div
-                                                        className="absolute inset-y-0 left-0 bg-sky-500"
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: `${dFillPct}%` }}
-                                                        transition={{ type: "spring", stiffness: 60, damping: 18 }}
-                                                    />
-                                                </div>
-                                                {/* Segment Mobile */}
+                                                <motion.div
+                                                    className="absolute inset-y-0 left-0 bg-sky-500"
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${dFillPct}%` }}
+                                                    transition={{ type: "spring", stiffness: 60, damping: 18 }}
+                                                />
+                                            </div>
+                                            {/* Segment Mobile */}
+                                            {hasBoth && (
                                                 <div
                                                     className="h-full relative overflow-hidden flex-1"
                                                     title={`Mobile: ${prog.mobileDone ?? 0}/${prog.mobileTotal ?? 0}`}
@@ -143,21 +142,32 @@ export function ProgressPanel() {
                                                         transition={{ type: "spring", stiffness: 60, damping: 18 }}
                                                     />
                                                 </div>
-                                            </div>
-                                            <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                                                <span className="flex items-center gap-1">
-                                                    <span className="inline-block w-2 h-1.5 rounded-sm bg-sky-500/70" />
-                                                    🖥 {prog.desktopDone ?? 0}/{prog.desktopTotal ?? 0}
-                                                </span>
-                                                <span className="flex items-center gap-1">
-                                                    📱 {prog.mobileDone ?? 0}/{prog.mobileTotal ?? 0}
-                                                    <span className="inline-block w-2 h-1.5 rounded-sm bg-violet-500/70" />
-                                                </span>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <Progress value={pct} className="h-2" />
-                                    )}
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] font-mono tabular-nums shrink-0">
+                                            <span
+                                                className={cn(
+                                                    dFillPct >= 100 ? "text-emerald-400/70" : "text-sky-400/60",
+                                                )}
+                                            >
+                                                {prog.desktopDone ?? 0}/{prog.desktopTotal ?? 0}
+                                            </span>
+                                            {hasBoth && (
+                                                <>
+                                                    <span className="mx-1 text-muted-foreground/20">·</span>
+                                                    <span
+                                                        className={cn(
+                                                            mFillPct >= 100
+                                                                ? "text-fuchsia-400/70"
+                                                                : "text-violet-400/60",
+                                                        )}
+                                                    >
+                                                        {prog.mobileDone ?? 0}/{prog.mobileTotal ?? 0}
+                                                    </span>
+                                                </>
+                                            )}
+                                        </span>
+                                    </div>
                                 </div>
                             );
                         })}

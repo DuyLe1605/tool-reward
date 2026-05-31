@@ -5,6 +5,37 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Trash2, Terminal } from "lucide-react";
 
+// Bảng màu rực rỡ dùng cho tên profile
+const PROFILE_COLORS = [
+    "#f87171", // red-400
+    "#fb923c", // orange-400
+    "#facc15", // yellow-400
+    "#4ade80", // green-400
+    "#34d399", // emerald-400
+    "#22d3ee", // cyan-400
+    "#60a5fa", // blue-400
+    "#818cf8", // indigo-400
+    "#c084fc", // purple-400
+    "#f472b6", // pink-400
+    "#2dd4bf", // teal-400
+    "#a3e635", // lime-400
+];
+
+function hashProfileColor(name: string): string {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) {
+        h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    }
+    return PROFILE_COLORS[h % PROFILE_COLORS.length];
+}
+
+/** Parse "[profileName] rest of message" → { profile, rest } | null */
+function parseLogProfile(message: string): { profile: string; rest: string } | null {
+    const m = message.match(/^\[([^\]]+)\](.*)$/);
+    if (!m) return null;
+    return { profile: m[1], rest: m[2] };
+}
+
 export function LogConsole() {
     const logs = useAppStore((s) => s.logs);
     const clearLogs = useAppStore((s) => s.clearLogs);
@@ -57,7 +88,19 @@ export function LogConsole() {
                                                 line.level === "info" && "text-muted-foreground",
                                             )}
                                         >
-                                            {line.message}
+                                            {(() => {
+                                                const parsed = parseLogProfile(line.message);
+                                                if (!parsed) return line.message;
+                                                const color = hashProfileColor(parsed.profile);
+                                                return (
+                                                    <>
+                                                        <span style={{ color }} className="font-semibold">
+                                                            [{parsed.profile}]
+                                                        </span>
+                                                        {parsed.rest}
+                                                    </>
+                                                );
+                                            })()}
                                         </span>
                                     </span>
                                 </div>

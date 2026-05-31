@@ -17,7 +17,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const REFERRAL_URL = import.meta.env.VITE_REFERRAL_URL as string;
+const REFERRAL_URL =
+    (import.meta.env.VITE_REFERRAL_URL as string | undefined) ??
+    "https://rewards.bing.com/welcome?rh=3A9D973E&ref=rafsrchae";
 
 /* ──────────────────────────── helpers ──────────────────────────── */
 
@@ -139,8 +141,13 @@ function Toc({ active }: { active: string }) {
 function ReferralCard() {
     const [copied, setCopied] = useState(false);
 
-    const copy = () => {
-        navigator.clipboard.writeText(REFERRAL_URL);
+    const copy = async () => {
+        const api = (window as { electronAPI?: { copyText?: (t: string) => Promise<void> } }).electronAPI;
+        if (api?.copyText) {
+            await api.copyText(REFERRAL_URL);
+        } else {
+            await navigator.clipboard.writeText(REFERRAL_URL);
+        }
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -183,6 +190,14 @@ function ReferralCard() {
                     href={REFERRAL_URL}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={async (e) => {
+                        const api = (window as { electronAPI?: { openExternal?: (u: string) => Promise<void> } })
+                            .electronAPI;
+                        if (api?.openExternal) {
+                            e.preventDefault();
+                            await api.openExternal(REFERRAL_URL);
+                        }
+                    }}
                     className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
                 >
                     Mở link đăng ký <ExternalLink className="w-3 h-3" />

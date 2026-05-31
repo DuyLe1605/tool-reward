@@ -32,6 +32,8 @@ export function useWebSocket() {
     const updatePoints = useAppStore((s) => s.updatePoints);
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Track điểm hôm nay của từng profile trong session hiện tại — dùng cho notification
+    const sessionPointsRef = useRef<Record<string, number>>({});
 
     const queryClient = useQueryClient();
 
@@ -46,11 +48,36 @@ export function useWebSocket() {
             ws.onmessage = (event) => {
                 try {
                     const msg: WsMsg = JSON.parse(event.data as string);
-                    if (msg.type === "log") appendLog(msg.message);
-                    else if (msg.type === "progress") updateProgress(msg.profile, msg.done, msg.total, msg.phase);
-                    else if (msg.type === "points") updatePoints(msg.profile, msg.data);
-                    else if (msg.type === "status") {
-                        if (!msg.running) resetProgress();
+                    if (msg.type === "log") {
+                        appendLog(msg.message);
+                    } else if (msg.type === "progress") {
+                        updateProgress(msg.profile, msg.done, msg.total, msg.phase);
+                    } else if (msg.type === "points") {
+                        updatePoints(msg.profile, msg.data);
+                        sessionPointsRef.current[msg.profile] = msg.data.today;
+                    } else if (msg.type === "status") {
+                        if (msg.running) {
+                            // Reset accumulator khi bắt đầu task mới
+                            sessionPointsRef.current = {};
+                        } else {
+                            resetProgress();
+                            // Gửi notification qua Electron IPC nếu đang chạy trong app
+                            const api = (
+                                window as {
+                                    electronAPI?: {
+                                        notifyTaskDone?: (c: number, t: number) => Promise<void>;
+                                    };
+                                }
+                            ).electronAPI;
+                            if (api?.notifyTaskDone) {
+                                const pts = sessionPointsRef.current;
+                                const profileCount = Object.keys(pts).length;
+                                const totalPoints = Object.values(pts).reduce((s, v) => s + v, 0);
+                                if (profileCount > 0) {
+                                    void api.notifyTaskDone(profileCount, totalPoints);
+                                }
+                            }
+                        }
                         queryClient.invalidateQueries({ queryKey: ["status"] });
                     }
                 } catch {

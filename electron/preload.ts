@@ -4,8 +4,17 @@
  * contextIsolation = true nên preload là cầu nối an toàn duy nhất giữa
  * renderer (React app) và main process.
  *
- * Hiện tại app dùng http://127.0.0.1:3789 nên không cần expose API nào.
- * File này chỉ để placeholder đúng chuẩn bảo mật Electron.
+ * Expose một số API cần thiết cho renderer:
+ *   - copyText: ghi text vào clipboard qua Electron clipboard module
+ *   - openExternal: mở URL bên ngoài bằng browser mặc định của hệ thống
+ *   - notifyTaskDone: hiện desktop notification khi task hoàn thành
  */
 
-// Không expose gì — React app giao tiếp qua HTTP/WebSocket với Express server
+import { contextBridge, ipcRenderer } from "electron";
+
+contextBridge.exposeInMainWorld("electronAPI", {
+    copyText: (text: string) => ipcRenderer.invoke("copy-text", text),
+    openExternal: (url: string) => ipcRenderer.invoke("open-external", url),
+    notifyTaskDone: (profileCount: number, totalPoints: number) =>
+        ipcRenderer.invoke("notify-task-done", profileCount, totalPoints),
+});

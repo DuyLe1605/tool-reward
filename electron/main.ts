@@ -23,7 +23,7 @@
  *   - Không cần bundle browser binary vào installer
  */
 
-import { app, BrowserWindow, shell, dialog } from "electron";
+import { app, BrowserWindow, shell, dialog, clipboard, ipcMain, Tray, Menu, Notification } from "electron";
 import { autoUpdater } from "electron-updater";
 import log from "electron-log";
 import path from "path";
@@ -38,6 +38,8 @@ process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
 const SERVER_PORT = 3789;
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
 
 // ── Single instance lock ──────────────────────────────────────────────────
 // Nếu user mở app lần 2, focus lại cửa sổ cũ và thoát instance mới
@@ -122,6 +124,41 @@ function waitForServer(port: number, timeoutMs = 20000): Promise<void> {
     });
 }
 
+// ── System tray ──────────────────────────────────────────────────────────────
+function createTray(): void {
+    const iconPath = app.isPackaged
+        ? path.join(process.resourcesPath, "icon.ico")
+        : path.join(__dirname, "..", "assets", "icon.ico");
+
+    tray = new Tray(iconPath);
+    tray.setToolTip("Rewards Tool");
+
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: "Mở Rewards Tool",
+            click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+            },
+        },
+        { type: "separator" },
+        {
+            label: "Thoát",
+            click: () => {
+                isQuitting = true;
+                app.quit();
+            },
+        },
+    ]);
+
+    tray.setContextMenu(contextMenu);
+    // Click trái vào tray → mở lại cửa sổ
+    tray.on("click", () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+    });
+}
+
 // ── Tạo cửa sổ chính ──────────────────────────────────────────────────────
 function createWindow(): void {
     mainWindow = new BrowserWindow({
@@ -157,7 +194,13 @@ function createWindow(): void {
         return { action: "deny" };
     });
 
-    mainWindow.on("closed", () => {
+    // Ẩn cửa sổ xuống tray thay vì đóng hẳn
+    mainWindow.on("close", (event) => {
+        if (!isQuitting) {
+            event.preventDefault();
+            mainWindow?.hide();
+            return;
+        }
         mainWindow = null;
     });
 }
@@ -228,7 +271,29 @@ app.whenReady().then(async () => {
         await waitForServer(SERVER_PORT);
         log.info(`[main] Server sẵn sàng tại :${SERVER_PORT}`);
 
+        // ── IPC handlers cho renderer ──────────────────────────────────────
+        // clipboard.writeText qua IPC để tránh giới hạn clipboard API trong sandbox
+        ipcMain.handle("copy-text", (_event, text: string) => {
+            clipboard.writeText(text);
+        });
+        // Mở URL ngoài bằng browser hệ thống, tránh navigate app window
+        ipcMain.handle("open-external", (_event, url: string) => {
+            if (url.startsWith("http://") || url.startsWith("https://")) {
+                shell.openExternal(url);
+            }
+        });
+        // Hiện desktop notification khi task xong
+        ipcMain.handle("notify-task-done", (_event, profileCount: number, totalPoints: number) => {
+            if (!Notification.isSupported()) return;
+            const body =
+                profileCount > 0
+                    ? `${profileCount} profile xong — +${totalPoints.toLocaleString("vi-VN")} điểm hôm nay`
+                    : "Tất cả profile đã hoàn thành";
+            new Notification({ title: "Rewards Tool ✅", body }).show();
+        });
+
         createWindow();
+        createTray();
 
         // Auto-update chỉ chạy khi app đã đóng gói (không chạy trong dev)
         if (app.isPackaged) {
@@ -255,5 +320,8 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
+    } else {
+        mainWindow?.show();
+        mainWindow?.focus();
     }
 });
