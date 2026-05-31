@@ -5,7 +5,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Activity, TrendingUp, Coins, Wallet } from "lucide-react";
+import { Activity, TrendingUp } from "lucide-react";
 import { PointsDetailDialog } from "@/components/PointsDetailDialog";
 import { cn } from "@/lib/utils";
 
@@ -161,36 +161,32 @@ export function ProgressPanel() {
 
             {pointEntries.length > 0 && (
                 <Card className="overflow-hidden">
-                    <CardHeader className="pb-0 px-4 pt-3">
-                        <div className="flex items-center justify-between mb-2">
-                            <CardTitle className="text-sm flex items-center gap-1.5">
-                                <TrendingUp className="w-4 h-4 text-primary" />
+                    {/* Header: title + summary stats */}
+                    <div className="px-4 pt-4 pb-3 border-b border-border">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                                <TrendingUp className="w-3.5 h-3.5" />
                                 Điểm thưởng
-                            </CardTitle>
-                            {lastCheckedDate && (
-                                <span className="text-[10px] font-normal text-muted-foreground">{lastCheckedDate}</span>
-                            )}
+                            </span>
+                            {lastCheckedDate && <span className="text-[10px] text-sky-400/70">{lastCheckedDate}</span>}
                         </div>
-                        {/* Summary: today + total available */}
-                        <div className="grid grid-cols-2 gap-2 mb-2">
-                            <div className="bg-primary/8 border border-primary/15 rounded-xl px-3 py-2.5 flex flex-col gap-0.5">
-                                <span className="text-[10px] text-muted-foreground">Hôm nay</span>
-                                <span className="text-xl font-bold tabular-nums text-foreground flex items-center gap-1.5">
-                                    <Coins className="w-4 h-4 text-yellow-400 shrink-0" />
-                                    {animatedTotal.toLocaleString()}
-                                </span>
+                        <div className="flex items-end justify-between">
+                            <div>
+                                <div className="text-[10px] text-muted-foreground/50 mb-0.5">Hôm nay</div>
+                                <div className="text-2xl font-bold tabular-nums text-foreground">
+                                    +{animatedTotal.toLocaleString()}
+                                </div>
                             </div>
-                            <div className="bg-muted/40 border border-border rounded-xl px-3 py-2.5 flex flex-col gap-0.5">
-                                <span className="text-[10px] text-muted-foreground">Khả dụng</span>
-                                <span className="text-xl font-bold tabular-nums text-foreground flex items-center gap-1.5">
-                                    <Wallet className="w-4 h-4 text-muted-foreground/60 shrink-0" />
+                            <div className="text-right">
+                                <div className="text-[10px] text-muted-foreground/50 mb-0.5">Khả dụng</div>
+                                <div className="text-2xl font-bold tabular-nums text-muted-foreground/80">
                                     {pointEntries.reduce((s, [, p]) => s + (p.available ?? 0), 0).toLocaleString()}
-                                </span>
+                                </div>
                             </div>
                         </div>
-                    </CardHeader>
+                    </div>
                     <CardContent className="p-0">
-                        <div className="divide-y divide-border">
+                        <div className="divide-y divide-border/50">
                             {pointEntries.map(([name, pts]) => {
                                 const hasMobile = !!(pts.mobile && pts.mobile !== "0/0");
                                 const dParts = (pts.desktop ?? "0/90").split("/").map(Number);
@@ -208,49 +204,55 @@ export function ProgressPanel() {
                                     <button
                                         key={name}
                                         onClick={() => setSelectedProfile(name)}
-                                        className="w-full px-4 py-3 hover:bg-accent/40 transition-colors text-left group"
+                                        className="w-full px-4 py-2.5 hover:bg-muted/30 transition-colors text-left"
                                     >
-                                        {/* Row 1: name/email + available */}
-                                        <div className="flex items-start gap-3 mb-2.5">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-semibold truncate leading-snug group-hover:text-primary transition-colors">
-                                                    {name}
-                                                </div>
-                                                {emailByName[name] && (
-                                                    <div className="text-[10px] text-muted-foreground/50 truncate leading-tight mt-0.5">
-                                                        {emailByName[name]}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <span
-                                                className={`text-base font-bold tabular-nums shrink-0 leading-snug ${avail > 0 ? "text-foreground" : "text-muted-foreground/25"}`}
-                                            >
+                                        {/* Row 1: name | available */}
+                                        <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                                            <span className="text-sm font-semibold truncate text-foreground">
+                                                {name}
+                                            </span>
+                                            <span className="text-base font-bold tabular-nums shrink-0 text-foreground">
                                                 {avail.toLocaleString()}
                                             </span>
                                         </div>
-                                        {/* Row 2: progress bar — 2px tall, no gap between segments */}
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <div className="flex-1 h-[3px] bg-muted/60 rounded-full overflow-hidden flex">
+                                        {/* Row 2: email | today */}
+                                        <div className="flex items-baseline justify-between gap-2 mb-2">
+                                            <span className="text-[10px] text-muted-foreground/80 truncate">
+                                                {emailByName[name] ?? ""}
+                                            </span>
+                                            <span className="text-xs font-semibold tabular-nums text-emerald-400/80 shrink-0">
+                                                +{(pts.today ?? 0).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        {/* Row 3: bar | counts */}
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="flex-1 h-[3px] bg-muted/40 overflow-hidden flex">
                                                 <div
                                                     className="h-full relative overflow-hidden"
                                                     style={{ width: hasMobile ? `${dSlot}%` : "100%" }}
                                                 >
                                                     <div
-                                                        className={`absolute inset-y-0 left-0 h-full transition-all duration-700 ${dDone ? "bg-emerald-500" : "bg-sky-500"}`}
+                                                        className={cn(
+                                                            "absolute inset-y-0 left-0 h-full transition-all duration-700",
+                                                            dDone ? "bg-emerald-500" : "bg-sky-500",
+                                                        )}
                                                         style={{ width: `${dFill}%` }}
                                                     />
                                                 </div>
                                                 {hasMobile && (
                                                     <div className="h-full relative overflow-hidden flex-1">
                                                         <div
-                                                            className={`absolute inset-y-0 left-0 h-full transition-all duration-700 ${mDone ? "bg-fuchsia-500" : "bg-violet-500"}`}
+                                                            className={cn(
+                                                                "absolute inset-y-0 left-0 h-full transition-all duration-700",
+                                                                mDone ? "bg-fuchsia-500" : "bg-violet-500",
+                                                            )}
                                                             style={{ width: `${mFill}%` }}
                                                         />
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className="text-[10px] font-mono shrink-0 tabular-nums">
-                                                <span className={dDone ? "text-emerald-400/80" : "text-sky-400/70"}>
+                                            <span className="text-[10px] font-mono tabular-nums shrink-0">
+                                                <span className={dDone ? "text-emerald-400/70" : "text-sky-400/60"}>
                                                     {pts.desktop || "0/90"}
                                                 </span>
                                                 {hasMobile && (
@@ -258,20 +260,13 @@ export function ProgressPanel() {
                                                         <span className="mx-1 text-muted-foreground/20">·</span>
                                                         <span
                                                             className={
-                                                                mDone ? "text-fuchsia-400/80" : "text-violet-400/70"
+                                                                mDone ? "text-fuchsia-400/70" : "text-violet-400/60"
                                                             }
                                                         >
                                                             {pts.mobile}
                                                         </span>
                                                     </>
                                                 )}
-                                            </span>
-                                        </div>
-                                        {/* Row 3: today */}
-                                        <div className="flex items-baseline justify-between gap-2">
-                                            <span className="text-xs text-muted-foreground/70">Hôm nay</span>
-                                            <span className="text-sm font-semibold tabular-nums text-foreground">
-                                                +{(pts.today ?? 0).toLocaleString()}
                                             </span>
                                         </div>
                                     </button>
