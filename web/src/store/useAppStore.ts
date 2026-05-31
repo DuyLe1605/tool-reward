@@ -143,6 +143,7 @@ export const useAppStore = create<AppState>()(
                                     desktopDone: done,
                                     desktopTotal: total,
                                     done: done + cur.mobileDone,
+                                    total: total + cur.mobileTotal,
                                 },
                             },
                         };
@@ -155,6 +156,7 @@ export const useAppStore = create<AppState>()(
                                     mobileDone: done,
                                     mobileTotal: total,
                                     done: cur.desktopDone + done,
+                                    total: cur.desktopTotal + total,
                                 },
                             },
                         };

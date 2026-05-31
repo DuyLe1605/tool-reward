@@ -62,9 +62,7 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
     if ((await containerLocator.count()) === 0) return;
     await containerLocator.scrollIntoViewIfNeeded().catch(() => {});
 
-    const cards = await containerLocator
-        .locator('.rounded-cornerCardDefault, a[href*="search"], a[href*="quiz"], a[href*="rewardsapp"]')
-        .all();
+    const cards = await containerLocator.locator('[data-react-aria-pressable="true"]').all();
 
     log(`--- Quét: ${label} (${cards.length} mục) ---`);
 
@@ -90,19 +88,36 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
             const isDisabled =
                 (await card.getAttribute("aria-disabled").catch(() => null)) === "true" ||
                 (await card.getAttribute("data-disabled").catch(() => null)) === "true";
-            if (isDisabled) continue;
+            if (isDisabled) {
+                log(`  [locked] "${title}"`);
+                continue;
+            }
 
-            const skipTypes = ["quest", "punch card", "check-in", "bing app", "redeem", "search bar", "expires soon"];
+            const skipTypes = [
+                "quest",
+                "punch card",
+                "check-in",
+                "bing app",
+                "redeem",
+                "search bar",
+                "expires soon",
+                "silver level",
+                "gold level",
+                "level required",
+            ];
             if (
                 skipTypes.some((k) => cardText.includes(k)) ||
                 href.includes("/quest/") ||
-                href.includes("ux=searchbar")
+                href.includes("ux=searchbar") ||
+                href.includes("levelbenefitexclusive")
             ) {
                 log(`  [skip] "${title}"`);
                 continue;
             }
 
-            if (!cardText.includes("+") && !cardText.includes("pts") && !/\d+/.test(cardText)) continue;
+            // Chỉ xử lý card có điểm chưa claim (badge xanh +N)
+            const hasClaimablePoints = cardHtml.includes("bg-statusInformativeTintBg");
+            if (!hasClaimablePoints) continue;
 
             log(`  → "${title}"`);
             await card.scrollIntoViewIfNeeded().catch(() => {});

@@ -1,12 +1,14 @@
 import { QueryClient, QueryClientProvider, useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
+import { Routes, Route } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { ProfileList } from "@/components/ProfileList";
 import { ControlPanel } from "@/components/ControlPanel";
 import { LogConsole } from "@/components/LogConsole";
 import { ProgressPanel } from "@/components/ProgressPanel";
 import { DailyCheckDialog } from "@/components/DailyCheckDialog";
+import { GuidePage } from "@/components/GuidePage";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useAppStore } from "@/store/useAppStore";
 import { api } from "@/api";
@@ -71,21 +73,29 @@ function AppInner() {
     return (
         <div className="min-h-screen bg-background flex flex-col">
             <Header />
-            <main className="flex-1 max-w-350 mx-auto w-full px-3 py-3 grid grid-cols-1 lg:grid-cols-[280px_1fr_260px] gap-3">
-                {/* Cột trái: profile + điều khiển */}
-                <div className="flex flex-col gap-3">
-                    <ProfileList />
-                    <ControlPanel />
-                </div>
-                {/* Cột giữa: log */}
-                <div className="lg:h-[calc(100vh-4.5rem)] flex flex-col">
-                    <LogConsole />
-                </div>
-                {/* Cột phải: tiến độ + điểm */}
-                <div className="flex flex-col gap-3">
-                    <ProgressPanel />
-                </div>
-            </main>
+            <Routes>
+                <Route
+                    path="/"
+                    element={
+                        <main className="flex-1 max-w-350 mx-auto w-full px-3 py-3 grid grid-cols-1 lg:grid-cols-[280px_1fr_260px] gap-3">
+                            {/* Cột trái: profile + điều khiển */}
+                            <div className="flex flex-col gap-3">
+                                <ProfileList />
+                                <ControlPanel />
+                            </div>
+                            {/* Cột giữa: log */}
+                            <div className="lg:h-[calc(100vh-4.5rem)] flex flex-col">
+                                <LogConsole />
+                            </div>
+                            {/* Cột phải: tiến độ + điểm */}
+                            <div className="flex flex-col gap-3">
+                                <ProgressPanel />
+                            </div>
+                        </main>
+                    }
+                />
+                <Route path="/guide" element={<GuidePage />} />
+            </Routes>
 
             {showDailyDialog && (
                 <DailyCheckDialog

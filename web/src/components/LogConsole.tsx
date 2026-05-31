@@ -12,10 +12,12 @@ export function LogConsole() {
     const bottomRef = useRef<HTMLDivElement>(null);
     const autoScrollRef = useRef(true);
 
-    // Auto-scroll xuống cuối khi có log mới
+    // Auto-scroll xuống cuối khi có log mới — cuộn trong viewport của ScrollArea, không cuộn trang
     useEffect(() => {
-        if (autoScrollRef.current) {
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (!autoScrollRef.current) return;
+        const viewport = bottomRef.current?.closest("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+        if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
         }
     }, [logs]);
 

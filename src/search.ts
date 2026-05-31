@@ -166,7 +166,7 @@ async function performMobileSearch(cookies: BrowserCookies, profileName: string,
 
                 searched++;
                 log(`${prefix} [${searched}/${mobileCount}] "${query}"`);
-                emitProgress(profileName, searched, mobileCount);
+                emitProgress(profileName, searched, mobileCount, "mobile");
 
                 try {
                     await page.goto("https://www.bing.com", { waitUntil: "domcontentloaded", timeout: 20000 });

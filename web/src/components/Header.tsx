@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
-import { Wifi, WifiOff, Moon, Sun, Power } from "lucide-react";
+import { Moon, Sun, Power, BookOpen, House } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { api } from "@/api";
+import { NavLink } from "react-router-dom";
 import {
     AlertDialog,
     AlertDialogTrigger,
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export function Header() {
-    const wsConnected = useAppStore((s) => s.wsConnected);
     const theme = useAppStore((s) => s.theme);
     const setTheme = useAppStore((s) => s.setTheme);
     const [exiting, setExiting] = useState(false);
@@ -44,15 +44,30 @@ export function Header() {
                 </div>
             </div>
             <div className="flex items-center gap-3">
-                <div
-                    className={cn(
-                        "flex items-center gap-1.5 text-xs font-medium",
-                        wsConnected ? "text-green-500" : "text-muted-foreground",
+                <NavLink to="/" end>
+                    {({ isActive }) => (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn("h-8 w-8", isActive && "text-primary bg-primary/10")}
+                            title="Trang chính"
+                        >
+                            <House className="w-4 h-4" />
+                        </Button>
                     )}
-                >
-                    {wsConnected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-                    {wsConnected ? "Kết nối" : "Mất kết nối"}
-                </div>
+                </NavLink>
+                <NavLink to="/guide">
+                    {({ isActive }) => (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn("h-8 w-8", isActive && "text-primary bg-primary/10")}
+                            title="Hướng dẫn sử dụng"
+                        >
+                            <BookOpen className="w-4 h-4" />
+                        </Button>
+                    )}
+                </NavLink>
                 <Button
                     variant="ghost"
                     size="icon"
