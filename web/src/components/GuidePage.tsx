@@ -250,13 +250,15 @@ export function GuidePage() {
                     transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     className="mb-12 text-center"
                 >
-                    <Link
-                        to="/"
-                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-foreground transition-colors mb-6"
-                    >
-                        <ArrowLeft className="w-3.5 h-3.5" />
-                        Quay về trang chính
-                    </Link>
+                    <div className="flex justify-center mb-6">
+                        <Link
+                            to="/"
+                            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-foreground transition-colors"
+                        >
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                            Quay về trang chính
+                        </Link>
+                    </div>
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary font-medium mb-4">
                         <Gift className="w-3.5 h-3.5" />
                         Hướng dẫn từ A đến Z
