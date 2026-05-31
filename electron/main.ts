@@ -208,6 +208,11 @@ function setupAutoUpdater(): void {
     });
 
     autoUpdater.on("error", (err) => {
+        // ENOENT app-update.yml xảy ra với --dir build (local test) — bỏ qua
+        if (err?.message?.includes("app-update.yml") || err?.message?.includes("ENOENT")) {
+            log.info("[updater] Bỏ qua lỗi update (local build không có installer metadata).");
+            return;
+        }
         log.error("[updater] Lỗi:", err?.message);
     });
 }
