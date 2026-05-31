@@ -23,10 +23,12 @@ router.get("/tasks/status", (_req, res) => {
 });
 
 router.post("/tasks/start", async (req, res) => {
-    const { profileIndices, maxSearches, mode } = req.body as {
+    const { profileIndices, maxSearches, mobileSearches, mode, searchType } = req.body as {
         profileIndices: number[];
         maxSearches: number;
+        mobileSearches: number;
         mode: "p" | "s";
+        searchType: "desktop" | "mobile" | "both";
     };
 
     if (!Array.isArray(profileIndices) || profileIndices.length === 0) {
@@ -35,7 +37,7 @@ router.post("/tasks/start", async (req, res) => {
     }
 
     try {
-        await startTask(profileIndices, maxSearches ?? 35, mode ?? "s");
+        await startTask(profileIndices, maxSearches ?? 35, mobileSearches ?? 20, mode ?? "s", searchType ?? "both");
         res.json({ ok: true });
     } catch (err) {
         res.status(409).json({ error: (err as Error).message });

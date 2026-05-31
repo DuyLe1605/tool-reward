@@ -17,6 +17,10 @@ export type RunMode = "p" | "s";
 export interface ProfileProgress {
     done: number;
     total: number;
+    desktopDone: number;
+    desktopTotal: number;
+    mobileDone: number;
+    mobileTotal: number;
 }
 
 export interface TaskStatus {
@@ -39,16 +43,38 @@ export function getTaskStatus(): TaskStatus {
     return { ...status, progress: { ...status.progress } };
 }
 
-export function updateProgress(profileName: string, done: number, total: number): void {
-    status.progress[profileName] = { done, total };
+export function updateProgress(profileName: string, done: number, total: number, phase?: "desktop" | "mobile"): void {
+    const cur = status.progress[profileName];
+    if (!cur) return;
+    if (phase === "desktop") {
+        cur.desktopDone = done;
+        cur.done = cur.desktopDone + cur.mobileDone;
+    } else if (phase === "mobile") {
+        cur.mobileDone = done;
+        cur.done = cur.desktopDone + cur.mobileDone;
+    } else {
+        cur.done = done;
+        cur.total = total;
+    }
 }
 
-export async function startTask(profileIndices: number[], maxSearches: number, mode: RunMode): Promise<void> {
+export async function startTask(
+    profileIndices: number[],
+    maxSearches: number,
+    mobileSearches: number,
+    mode: RunMode,
+    searchType: "desktop" | "mobile" | "both",
+): Promise<void> {
     if (status.running) throw new Error("Có task đang chạy");
 
     const allProfiles = getEdgeProfiles();
     const selected = profileIndices.map((i) => allProfiles[i]).filter(Boolean);
     if (selected.length === 0) throw new Error("Không có profile hợp lệ");
+
+    // Khởi tạo progress với desktopTotal / mobileTotal để frontend vẽ progress 2 màu
+    const desktopTotal = searchType !== "mobile" ? maxSearches : 0;
+    const mobileTotal = searchType !== "desktop" ? mobileSearches : 0;
+    const progressTotal = desktopTotal + mobileTotal;
 
     status.running = true;
     status.mode = mode;
@@ -56,7 +82,14 @@ export async function startTask(profileIndices: number[], maxSearches: number, m
     status.progress = {};
     status.startedAt = Date.now();
     selected.forEach((p) => {
-        status.progress[p.name] = { done: 0, total: maxSearches };
+        status.progress[p.name] = {
+            done: 0,
+            total: progressTotal,
+            desktopDone: 0,
+            desktopTotal,
+            mobileDone: 0,
+            mobileTotal,
+        };
     });
 
     taskController.reset();
@@ -67,11 +100,13 @@ export async function startTask(profileIndices: number[], maxSearches: number, m
     (async () => {
         try {
             if (mode === "p") {
-                await Promise.all(selected.map((p) => performProfileTask(p, maxSearches, true)));
+                await Promise.all(
+                    selected.map((p) => performProfileTask(p, maxSearches, mobileSearches, searchType, true)),
+                );
             } else {
                 for (const p of selected) {
                     if (taskController.shouldStop) break;
-                    await performProfileTask(p, maxSearches, false);
+                    await performProfileTask(p, maxSearches, mobileSearches, searchType, false);
                 }
             }
         } finally {

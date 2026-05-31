@@ -6,7 +6,18 @@ import { useAppStore } from "@/store/useAppStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Play, Square, ChevronUp, ChevronDown, Shuffle, BarChart2, Loader2 } from "lucide-react";
+import {
+    Play,
+    Square,
+    ChevronUp,
+    ChevronDown,
+    Shuffle,
+    BarChart2,
+    Loader2,
+    Monitor,
+    Smartphone,
+    MonitorSmartphone,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function ControlPanel() {
@@ -17,7 +28,17 @@ export function ControlPanel() {
         refetchInterval: (query) => (query.state.data?.running ? 1000 : 2000),
     });
 
-    const { maxSearches, mode, selectedIndices, setMaxSearches, setMode } = useAppStore();
+    const {
+        maxSearches,
+        mobileSearches,
+        searchType,
+        mode,
+        selectedIndices,
+        setMaxSearches,
+        setMobileSearches,
+        setSearchType,
+        setMode,
+    } = useAppStore();
     const running = status?.running ?? false;
     const [stopping, setStopping] = useState(false);
 
@@ -35,8 +56,17 @@ export function ControlPanel() {
         setInputValue(String(clamped));
     };
 
+    const [mobileInputValue, setMobileInputValue] = useState(String(mobileSearches));
+    const commitMobileInput = (raw: string) => {
+        const v = parseInt(raw, 10);
+        const clamped = isNaN(v) || v < 0 ? 0 : Math.min(v, 20);
+        setMobileSearches(clamped);
+        setMobileInputValue(String(clamped));
+    };
+
     const startMutation = useMutation({
-        mutationFn: () => api.startTask({ profileIndices: selectedIndices, maxSearches, mode }),
+        mutationFn: () =>
+            api.startTask({ profileIndices: selectedIndices, maxSearches, mobileSearches, mode, searchType }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ["status"] }),
     });
 
@@ -91,41 +121,150 @@ export function ControlPanel() {
             <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Điều khiển</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-                {/* Số lượt search — stepper gộp 1 ô */}
+            <CardContent className="space-y-4">
+                {/* ── Loại tìm kiếm ──────────────────────────────────── */}
                 <div>
-                    <label className="text-xs text-muted-foreground mb-1.5 block">Số lượt search / profile</label>
-                    <div className="flex items-center h-9 rounded-lg border border-border bg-input/30 overflow-hidden w-full">
-                        <button
-                            className="h-full px-2.5 flex items-center justify-center hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            onClick={() => setMaxSearches(Math.max(0, maxSearches - 5))}
-                            disabled={running}
-                        >
-                            <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                        <div className="w-px h-5 bg-border" />
-                        <input
-                            type="number"
-                            value={inputValue}
-                            min={0}
-                            disabled={running}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onBlur={(e) => commitInput(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && commitInput(inputValue)}
-                            className="flex-1 text-center font-mono text-sm font-semibold bg-transparent px-1 py-0 focus:outline-none text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                        <div className="w-px h-5 bg-border" />
-                        <button
-                            className="h-full px-2.5 flex items-center justify-center hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            onClick={() => setMaxSearches(maxSearches + 5)}
-                            disabled={running}
-                        >
-                            <ChevronUp className="w-3.5 h-3.5" />
-                        </button>
+                    <label className="text-xs text-muted-foreground mb-2 block">Loại tìm kiếm</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                        {(["desktop", "mobile", "both"] as const).map((t) => {
+                            const icons = {
+                                desktop: <Monitor className="w-4 h-4" />,
+                                mobile: <Smartphone className="w-4 h-4" />,
+                                both: <MonitorSmartphone className="w-4 h-4" />,
+                            };
+                            const labels = { desktop: "Desktop", mobile: "Mobile", both: "Cả hai" };
+                            const pts = { desktop: "90 pts", mobile: "60 pts", both: "150 pts" };
+                            const active = searchType === t;
+                            return (
+                                <button
+                                    key={t}
+                                    onClick={() => !running && setSearchType(t)}
+                                    disabled={running}
+                                    className={cn(
+                                        "flex flex-col items-center gap-1 rounded-xl border py-2.5 px-1 text-xs font-medium transition-all",
+                                        active
+                                            ? "border-primary/50 bg-primary/10 text-primary"
+                                            : "border-border bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground",
+                                        running && "cursor-not-allowed opacity-50",
+                                    )}
+                                >
+                                    {icons[t]}
+                                    <span>{labels[t]}</span>
+                                    <span
+                                        className={cn(
+                                            "text-[10px] font-mono",
+                                            active ? "text-primary/70" : "text-muted-foreground/60",
+                                        )}
+                                    >
+                                        {pts[t]}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* Chế độ — segmented control */}
+                {/* ── Số lượt search ──────────────────────────────────── */}
+                <div className="space-y-2.5">
+                    {/* Desktop stepper */}
+                    {(searchType === "desktop" || searchType === "both") && (
+                        <div>
+                            <label className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                                <Monitor className="w-3 h-3" /> Desktop search / profile
+                                <span className="ml-auto font-mono text-[10px] text-muted-foreground/60">
+                                    max ~90 pts
+                                </span>
+                            </label>
+                            <div className="flex items-center h-9 rounded-lg border border-border bg-input/30 overflow-hidden w-full">
+                                <button
+                                    className="h-full px-2.5 flex items-center justify-center hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    onClick={() => {
+                                        const v = Math.max(0, maxSearches - 5);
+                                        setMaxSearches(v);
+                                        setInputValue(String(v));
+                                    }}
+                                    disabled={running}
+                                >
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                                <div className="w-px h-5 bg-border" />
+                                <input
+                                    type="number"
+                                    value={inputValue}
+                                    min={0}
+                                    disabled={running}
+                                    onChange={(e) => setInputValue(e.target.value)}
+                                    onBlur={(e) => commitInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && commitInput(inputValue)}
+                                    className="flex-1 text-center font-mono text-sm font-semibold bg-transparent px-1 py-0 focus:outline-none text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <div className="w-px h-5 bg-border" />
+                                <button
+                                    className="h-full px-2.5 flex items-center justify-center hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    onClick={() => {
+                                        const v = maxSearches + 5;
+                                        setMaxSearches(v);
+                                        setInputValue(String(v));
+                                    }}
+                                    disabled={running}
+                                >
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mobile stepper */}
+                    {(searchType === "mobile" || searchType === "both") && (
+                        <div>
+                            <label className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                                <Smartphone className="w-3 h-3" /> Mobile search / profile
+                                <span className="ml-auto font-mono text-[10px] text-muted-foreground/60">
+                                    tối đa 20
+                                </span>
+                            </label>
+                            <div className="flex items-center h-9 rounded-lg border border-border bg-input/30 overflow-hidden w-full">
+                                <button
+                                    className="h-full px-2.5 flex items-center justify-center hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    onClick={() => {
+                                        const v = Math.max(0, mobileSearches - 5);
+                                        setMobileSearches(v);
+                                        setMobileInputValue(String(v));
+                                    }}
+                                    disabled={running}
+                                >
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                                <div className="w-px h-5 bg-border" />
+                                <input
+                                    type="number"
+                                    value={mobileInputValue}
+                                    min={0}
+                                    max={20}
+                                    disabled={running}
+                                    onChange={(e) => setMobileInputValue(e.target.value)}
+                                    onBlur={(e) => commitMobileInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && commitMobileInput(mobileInputValue)}
+                                    className="flex-1 text-center font-mono text-sm font-semibold bg-transparent px-1 py-0 focus:outline-none text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <div className="w-px h-5 bg-border" />
+                                <button
+                                    className="h-full px-2.5 flex items-center justify-center hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    onClick={() => {
+                                        const v = Math.min(20, mobileSearches + 5);
+                                        setMobileSearches(v);
+                                        setMobileInputValue(String(v));
+                                    }}
+                                    disabled={running}
+                                >
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* ── Chế độ chạy ──────────────────────────────────────── */}
                 <div>
                     <label className="text-xs text-muted-foreground mb-1.5 block">Chế độ chạy</label>
                     <div className="flex gap-1 p-1 rounded-lg bg-muted/60 border border-border">
@@ -158,7 +297,7 @@ export function ControlPanel() {
                     </div>
                 </div>
 
-                {/* Tiến độ — chỉ hiện khi đang chạy */}
+                {/* ── Tiến độ ──────────────────────────────────────────── */}
                 {running && totalMax > 0 && (
                     <div className="rounded-lg bg-muted/40 border border-border px-3 py-2">
                         <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
@@ -172,7 +311,7 @@ export function ControlPanel() {
                     </div>
                 )}
 
-                {/* Nút hành động */}
+                {/* ── Nút hành động ─────────────────────────────────────── */}
                 {!running ? (
                     <div className="flex flex-col gap-2 pt-1">
                         <Button
@@ -215,7 +354,6 @@ export function ControlPanel() {
                     </Button>
                 )}
 
-                {/* Overlay toàn trang khi đang dừng */}
                 {stopping && (
                     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
                         <div className="bg-card border border-border rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-55">

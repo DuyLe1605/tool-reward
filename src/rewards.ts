@@ -9,7 +9,7 @@ import { CONFIG } from "./config";
 import { sleep } from "./utils";
 import { log, emitPoints } from "./logger";
 import { handleActivityContent } from "./browser";
-import { scrapeRewardsPoints } from "./pointsScraper";
+import { scrapeRewardsPoints, scrapeAvailablePoints, fetchAndEmitPoints } from "./pointsScraper";
 
 /** Kiểm tra đăng nhập: false nếu bị redirect sang login page hoặc trang 404/Sign-in. */
 async function isLoggedIn(page: Page): Promise<boolean> {
@@ -213,23 +213,7 @@ export async function completeRewardsActivities(page: Page, profileName = ""): P
 
         // Scrape điểm sau khi hoàn thành tất cả tasks
         if (profileName) {
-            log("Đang cập nhật điểm...");
-            // Warm-up về dashboard trước để auth ổn định
-            await page
-                .goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 15000 })
-                .catch(() => {});
-            await page.waitForURL("**/dashboard**", { timeout: 8000 }).catch(() => {});
-            await sleep(1500);
-            // Vào /earn để có flyout "Points breakdown"
-            await page
-                .goto("https://rewards.bing.com/earn", { waitUntil: "domcontentloaded", timeout: 15000 })
-                .catch(() => {});
-            await sleep(2000);
-            const pts = await scrapeRewardsPoints(page);
-            if (pts) {
-                emitPoints(profileName, pts);
-                log(`  Điểm cập nhật: ${pts.today} | Desktop: ${pts.desktop || "?"} | Mobile: ${pts.mobile || "?"}`);
-            }
+            await fetchAndEmitPoints(page, profileName);
         }
     } catch (err) {
         log(`Lỗi Rewards: ${(err as Error).message}`);

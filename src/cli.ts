@@ -48,11 +48,13 @@ export async function runAutoSearch(): Promise<void> {
     taskController.reset();
 
     if (mode.toLowerCase() === "p") {
-        await Promise.all(selectedIndices.map((idx) => performProfileTask(profiles[idx], maxSearches, true)));
+        await Promise.all(
+            selectedIndices.map((idx) => performProfileTask(profiles[idx], maxSearches, 20, "both", true)),
+        );
     } else {
         for (const idx of selectedIndices) {
             if (taskController.shouldStop) break;
-            await performProfileTask(profiles[idx], maxSearches, false);
+            await performProfileTask(profiles[idx], maxSearches, 20, "both", false);
         }
     }
 

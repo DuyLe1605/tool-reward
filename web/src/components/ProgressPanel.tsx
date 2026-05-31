@@ -5,7 +5,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Activity, TrendingUp } from "lucide-react";
+import { Activity, TrendingUp, Coins, Wallet } from "lucide-react";
 import { PointsDetailDialog } from "@/components/PointsDetailDialog";
 import { cn } from "@/lib/utils";
 
@@ -34,8 +34,6 @@ function useCountUp(target: number, duration = 700) {
     }, [target, duration]);
     return count;
 }
-
-const MEDALS = ["🥇", "🥈", "🥉"];
 
 export function ProgressPanel() {
     const { data: status } = useQuery({ queryKey: ["status"], queryFn: api.getStatus, refetchInterval: 2000 });
@@ -68,17 +66,6 @@ export function ProgressPanel() {
 
     if (!running && runningEntries.length === 0 && pointEntries.length === 0) return null;
 
-    const dPct = (d: string) => {
-        if (!d) return 0;
-        const [n, t] = d.split("/").map(Number);
-        return t > 0 ? Math.round((n / t) * 100) : 0;
-    };
-    const dFull = (d: string) => {
-        if (!d) return false;
-        const [n, t] = d.split("/").map(Number);
-        return n >= t;
-    };
-
     return (
         <>
             {(running || runningEntries.length > 0) && (
@@ -98,9 +85,15 @@ export function ProgressPanel() {
                             )}
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2.5">
+                    <CardContent className="space-y-3">
                         {runningEntries.map(([name, prog]) => {
                             const pct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
+                            const hasBoth = (prog.desktopTotal ?? 0) > 0 && (prog.mobileTotal ?? 0) > 0;
+                            const dSlotPct = prog.total > 0 ? ((prog.desktopTotal ?? 0) / prog.total) * 100 : 50;
+                            const dFillPct =
+                                (prog.desktopTotal ?? 0) > 0 ? ((prog.desktopDone ?? 0) / prog.desktopTotal) * 100 : 0;
+                            const mFillPct =
+                                (prog.mobileTotal ?? 0) > 0 ? ((prog.mobileDone ?? 0) / prog.mobileTotal) * 100 : 0;
                             return (
                                 <div key={name}>
                                     <div className="flex justify-between text-xs mb-1.5">
@@ -117,7 +110,48 @@ export function ProgressPanel() {
                                             </span>
                                         </span>
                                     </div>
-                                    <Progress value={pct} className="h-1.5" />
+                                    {hasBoth ? (
+                                        <>
+                                            <div
+                                                className="h-2 w-full rounded-full bg-muted overflow-hidden flex"
+                                                style={{ gap: "1px" }}
+                                            >
+                                                {/* Segment Desktop */}
+                                                <div
+                                                    className="h-full relative overflow-hidden"
+                                                    style={{ width: `${dSlotPct}%` }}
+                                                    title={`Desktop: ${prog.desktopDone ?? 0}/${prog.desktopTotal ?? 0}`}
+                                                >
+                                                    <div
+                                                        className="absolute inset-y-0 left-0 bg-sky-500 transition-all duration-500"
+                                                        style={{ width: `${dFillPct}%` }}
+                                                    />
+                                                </div>
+                                                {/* Segment Mobile */}
+                                                <div
+                                                    className="h-full relative overflow-hidden flex-1"
+                                                    title={`Mobile: ${prog.mobileDone ?? 0}/${prog.mobileTotal ?? 0}`}
+                                                >
+                                                    <div
+                                                        className="absolute inset-y-0 left-0 bg-violet-500 transition-all duration-500"
+                                                        style={{ width: `${mFillPct}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                                                <span className="flex items-center gap-1">
+                                                    <span className="inline-block w-2 h-1.5 rounded-sm bg-sky-500/70" />
+                                                    🖥 {prog.desktopDone ?? 0}/{prog.desktopTotal ?? 0}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    📱 {prog.mobileDone ?? 0}/{prog.mobileTotal ?? 0}
+                                                    <span className="inline-block w-2 h-1.5 rounded-sm bg-violet-500/70" />
+                                                </span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <Progress value={pct} className="h-2" />
+                                    )}
                                 </div>
                             );
                         })}
@@ -137,59 +171,105 @@ export function ProgressPanel() {
                                 <span className="text-[10px] font-normal text-muted-foreground">{lastCheckedDate}</span>
                             )}
                         </div>
-                        {/* Summary metric */}
-                        <div className="bg-primary/8 border border-primary/15 rounded-xl px-3 py-2.5 mb-2 flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Tổng hôm nay</span>
-                            <span className="text-xl font-bold tabular-nums text-foreground">
-                                🪙 {animatedTotal.toLocaleString()}
-                            </span>
+                        {/* Summary: today + total available */}
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                            <div className="bg-primary/8 border border-primary/15 rounded-xl px-3 py-2.5 flex flex-col gap-0.5">
+                                <span className="text-[10px] text-muted-foreground">Hôm nay</span>
+                                <span className="text-xl font-bold tabular-nums text-foreground flex items-center gap-1.5">
+                                    <Coins className="w-4 h-4 text-yellow-400 shrink-0" />
+                                    {animatedTotal.toLocaleString()}
+                                </span>
+                            </div>
+                            <div className="bg-muted/40 border border-border rounded-xl px-3 py-2.5 flex flex-col gap-0.5">
+                                <span className="text-[10px] text-muted-foreground">Khả dụng</span>
+                                <span className="text-xl font-bold tabular-nums text-foreground flex items-center gap-1.5">
+                                    <Wallet className="w-4 h-4 text-muted-foreground/60 shrink-0" />
+                                    {pointEntries.reduce((s, [, p]) => s + (p.available ?? 0), 0).toLocaleString()}
+                                </span>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y divide-border">
-                            {pointEntries.map(([name, pts], idx) => {
-                                const full = dFull(pts.desktop);
-                                const pct = dPct(pts.desktop);
-                                const medal = MEDALS[idx];
+                            {pointEntries.map(([name, pts]) => {
+                                const hasMobile = !!(pts.mobile && pts.mobile !== "0/0");
+                                const dParts = (pts.desktop ?? "0/90").split("/").map(Number);
+                                const mParts = hasMobile ? pts.mobile!.split("/").map(Number) : [0, 0];
+                                const dTotal = dParts[1] || 90;
+                                const mTotal = mParts[1] || 0;
+                                const combined = dTotal + mTotal;
+                                const dSlot = combined > 0 ? (dTotal / combined) * 100 : 100;
+                                const dFill = dTotal > 0 ? (dParts[0] / dTotal) * 100 : 0;
+                                const mFill = mTotal > 0 ? (mParts[0] / mTotal) * 100 : 0;
+                                const dDone = dParts[0] >= dTotal;
+                                const mDone = hasMobile && mParts[0] >= mTotal;
+                                const avail = pts.available ?? 0;
                                 return (
                                     <button
                                         key={name}
                                         onClick={() => setSelectedProfile(name)}
                                         className="w-full px-4 py-2.5 hover:bg-accent/40 transition-colors text-left group"
                                     >
-                                        <div className="flex items-start gap-2 mb-1.5">
-                                            {medal ? (
-                                                <span className="text-base leading-none mt-0.5 shrink-0">{medal}</span>
-                                            ) : (
-                                                <span className="text-[11px] text-muted-foreground/50 font-mono w-4 mt-1 shrink-0 tabular-nums">
-                                                    {idx + 1}
-                                                </span>
-                                            )}
-                                            <div className="min-w-0 flex-1">
-                                                <div className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium truncate leading-snug group-hover:text-primary transition-colors">
                                                     {name}
                                                 </div>
                                                 {emailByName[name] && (
-                                                    <div className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
+                                                    <div className="text-[10px] text-muted-foreground/60 truncate leading-tight">
                                                         {emailByName[name]}
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className="text-base font-bold shrink-0 tabular-nums text-foreground pt-0.5">
-                                                {(pts.today ?? 0).toLocaleString()}
+                                            <span className="text-sm font-bold tabular-nums shrink-0">
+                                                +{(pts.today ?? 0).toLocaleString()}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-2 pl-6">
-                                            <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full transition-all duration-700 ${full ? "bg-emerald-500/70" : "bg-primary/60"}`}
-                                                    style={{ width: `${pct}%` }}
-                                                />
+                                        {/* available + bar */}
+                                        {avail > 0 && (
+                                            <div className="text-[10px] text-muted-foreground/50 tabular-nums mb-1">
+                                                Khả dụng: {avail.toLocaleString()}
                                             </div>
-                                            <span
-                                                className={`text-[10px] font-mono shrink-0 w-11 text-right ${full ? "text-emerald-500/80" : "text-primary/70"}`}
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                            <div
+                                                className="flex-1 h-1 bg-muted rounded-full overflow-hidden flex"
+                                                style={{ gap: "1px" }}
                                             >
-                                                {pts.desktop || "0/90"}
+                                                <div
+                                                    className="h-full relative overflow-hidden"
+                                                    style={{ width: hasMobile ? `${dSlot}%` : "100%" }}
+                                                >
+                                                    <div
+                                                        className={`absolute inset-y-0 left-0 h-full rounded-full transition-all duration-700 ${dDone ? "bg-emerald-500/70" : "bg-sky-500/70"}`}
+                                                        style={{ width: `${dFill}%` }}
+                                                    />
+                                                </div>
+                                                {hasMobile && (
+                                                    <div className="h-full relative overflow-hidden flex-1">
+                                                        <div
+                                                            className={`absolute inset-y-0 left-0 h-full rounded-full transition-all duration-700 ${mDone ? "bg-emerald-500/70" : "bg-violet-500/70"}`}
+                                                            style={{ width: `${mFill}%` }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] font-mono shrink-0">
+                                                <span className={dDone ? "text-emerald-500/70" : "text-sky-400/60"}>
+                                                    {pts.desktop || "0/90"}
+                                                </span>
+                                                {hasMobile && (
+                                                    <>
+                                                        <span className="mx-1 text-muted-foreground/30">·</span>
+                                                        <span
+                                                            className={
+                                                                mDone ? "text-emerald-500/70" : "text-violet-400/60"
+                                                            }
+                                                        >
+                                                            {pts.mobile}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </span>
                                         </div>
                                     </button>

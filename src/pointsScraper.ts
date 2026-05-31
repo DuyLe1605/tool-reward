@@ -11,6 +11,31 @@
 import type { Page } from "playwright";
 import { sleep } from "./utils";
 import type { PointsSummary } from "./logger";
+import { log, emitPoints } from "./logger";
+
+/**
+ * Scrape "Available points" từ trang dashboard (rewards.bing.com/dashboard).
+ * Gọi khi page đang ở trên dashboard — trước khi navigate sang /earn.
+ */
+export async function scrapeAvailablePoints(page: Page): Promise<number> {
+    return page
+        .evaluate(() => {
+            function parseNum(s: string) {
+                return parseInt(s.replace(/,/g, ""), 10) || 0;
+            }
+            for (const el of document.querySelectorAll("p")) {
+                if (el.textContent?.trim() === "Available points") {
+                    const cardBody = el.parentElement?.parentElement;
+                    if (cardBody) {
+                        const valueEl = cardBody.querySelector("[class*='pageHeader']");
+                        if (valueEl) return parseNum(valueEl.textContent?.trim() ?? "");
+                    }
+                }
+            }
+            return 0;
+        })
+        .catch(() => 0);
+}
 
 /**
  * Scrape điểm thưởng từ trang Rewards.
@@ -22,7 +47,6 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
         const breakdownBtn = page.locator('button:has-text("Points breakdown")').first();
         if (await breakdownBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
             await breakdownBtn.click().catch(() => {});
-            // Đợi dialog xuất hiện (có h2 "Points breakdown" bên trong)
             await page
                 .waitForSelector('[role="dialog"] h2, section[role="dialog"]', {
                     state: "visible",
@@ -107,13 +131,41 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
             }
 
             return { today, todayFound, desktop, mobile, offers, lifetime, thisMonth, thisYear };
-        })) as PointsSummary & { todayFound: boolean };
+        })) as Omit<PointsSummary, "available"> & { todayFound: boolean };
 
-        // Bỏ qua nếu không scrape được gì có ý nghĩa (lifetime luôn > 0 với account active)
+        // Bỏ qua nếu không scrape được gì có ý nghĩa
         if (!data.todayFound && !data.desktop && !data.mobile && !data.lifetime) return null;
-        const { todayFound: _f, ...result } = data;
-        return result as PointsSummary;
+        const { todayFound: _f, ...rest } = data;
+        return { ...rest, available: 0 } as PointsSummary;
     } catch {
         return null;
+    }
+}
+
+/**
+ * Pipeline đầy đủ: dashboard → lấy available → /earn → scrape breakdown → merge → emitPoints.
+ * Dùng khi page đang ở BẤT KỲ trang nào của rewards.bing.com và đã đăng nhập.
+ */
+export async function fetchAndEmitPoints(page: Page, profileName: string): Promise<void> {
+    try {
+        log(`[${profileName}] Đang cập nhật điểm...`);
+        await page.goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+        await page.waitForURL("**/dashboard**", { timeout: 8000 }).catch(() => {});
+        await sleep(1500);
+        const available = await scrapeAvailablePoints(page);
+        await page
+            .goto("https://rewards.bing.com/earn", { waitUntil: "domcontentloaded", timeout: 15000 })
+            .catch(() => {});
+        await sleep(2000);
+        const pts = await scrapeRewardsPoints(page);
+        if (pts) {
+            pts.available = available;
+            emitPoints(profileName, pts);
+            log(
+                `[${profileName}] Điểm: hôm nay=${pts.today} | desktop=${pts.desktop || "?"} | mobile=${pts.mobile || "?"} | khả dụng=${available}`,
+            );
+        }
+    } catch (err) {
+        log(`[${profileName}] Lỗi cập nhật điểm: ${(err as Error).message}`);
     }
 }

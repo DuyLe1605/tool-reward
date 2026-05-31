@@ -13,7 +13,14 @@ import type { PointsSummary } from "@/store/useAppStore";
 
 type WsMsg =
     | { type: "log"; message: string; timestamp: number }
-    | { type: "progress"; profile: string; done: number; total: number; timestamp: number }
+    | {
+          type: "progress";
+          profile: string;
+          done: number;
+          total: number;
+          phase?: "desktop" | "mobile";
+          timestamp: number;
+      }
     | { type: "status"; running: boolean; timestamp: number }
     | { type: "points"; profile: string; data: PointsSummary; timestamp: number };
 
@@ -40,7 +47,7 @@ export function useWebSocket() {
                 try {
                     const msg: WsMsg = JSON.parse(event.data as string);
                     if (msg.type === "log") appendLog(msg.message);
-                    else if (msg.type === "progress") updateProgress(msg.profile, msg.done, msg.total);
+                    else if (msg.type === "progress") updateProgress(msg.profile, msg.done, msg.total, msg.phase);
                     else if (msg.type === "points") updatePoints(msg.profile, msg.data);
                     else if (msg.type === "status") {
                         if (!msg.running) resetProgress();

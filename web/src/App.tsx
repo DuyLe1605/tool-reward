@@ -23,6 +23,12 @@ function AppInner() {
     useWebSocket();
 
     const today = new Date().toDateString();
+    const todayDisplay = new Date().toLocaleDateString("vi-VN", {
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+    });
     const { data: profiles } = useQuery({ queryKey: ["profiles"], queryFn: api.getProfiles });
     const checkMutation = useMutation({ mutationFn: api.checkPoints });
     const markCheckedMutation = useMutation({ mutationFn: api.markChecked });
@@ -45,20 +51,20 @@ function AppInner() {
             setLastCheckedDate("");
             setShowDailyDialog(true);
         } else {
-            setLastCheckedDate(today);
+            setLastCheckedDate(todayDisplay);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [serverState]);
 
     const handleCheckAll = () => {
         markCheckedMutation.mutate();
-        setLastCheckedDate(today);
+        setLastCheckedDate(todayDisplay);
         setShowDailyDialog(false);
         if (profiles?.length) checkMutation.mutate(profiles.map((_, i) => i));
     };
     const handleDismiss = () => {
         markCheckedMutation.mutate();
-        setLastCheckedDate(today);
+        setLastCheckedDate(todayDisplay);
         setShowDailyDialog(false);
     };
 

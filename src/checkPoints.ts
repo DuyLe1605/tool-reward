@@ -15,7 +15,7 @@ import { dismissCookieConsent } from "./browser";
 import { log, emitPoints } from "./logger";
 import { taskController } from "./taskController";
 import type { EdgeProfile } from "./profiles";
-import { scrapeRewardsPoints } from "./pointsScraper";
+import { fetchAndEmitPoints } from "./pointsScraper";
 
 /** Scrape điểm thưởng từ trang Rewards.
  * Được xử lý bởi pointsScraper.ts — dùng DOM-based approach.
@@ -80,22 +80,8 @@ export async function checkProfilePoints(profile: EdgeProfile): Promise<void> {
                 return;
             }
 
-            // Vào /earn để có nút "Points breakdown" dạng flyout
-            await page
-                .goto("https://rewards.bing.com/earn", { waitUntil: "domcontentloaded", timeout: 15000 })
-                .catch(() => {});
-            await sleep(2000);
-
             // Scrape điểm
-            const pts = await scrapeRewardsPoints(page);
-            if (pts) {
-                emitPoints(profile.name, pts);
-                log(
-                    `${prefix} Điểm: hôm nay=${pts.today} | desktop=${pts.desktop || "?"} | mobile=${pts.mobile || "?"} | lifetime=${pts.lifetime}`,
-                );
-            } else {
-                log(`${prefix} Không scrape được điểm.`);
-            }
+            await fetchAndEmitPoints(page, profile.name);
         } finally {
             await context.close().catch(() => {});
         }

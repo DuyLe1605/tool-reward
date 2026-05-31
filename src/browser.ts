@@ -15,25 +15,18 @@ import { log } from "./logger";
 
 /**
  * Tự động bấm "Accept" trên popup cookie của Bing.
+ * Dùng combined selector để check tất cả biến thể cùng lúc (desktop + mobile).
  */
 export async function dismissCookieConsent(page: Page): Promise<void> {
     try {
-        // ID chính xác của nút Accept trong popup cookie Bing
-        // Cookie consent của Bing: <div id="bnp_btn_accept"><a>Accept</a></div>
-        // Phải click vào thẻ <a> bên trong, không phải div bọc ngoài
-        const selectors = [
-            "#bnp_btn_accept a",
-            "#bnp_btn_accept",
-            'button:has-text("Accept")',
-            'button:has-text("Accept all")',
-        ];
-        for (const sel of selectors) {
-            const btn = page.locator(sel).first();
-            if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
-                await btn.click().catch(() => {});
-                await sleep(500);
-                return;
-            }
+        // Desktop: #bnp_btn_accept (div bọc hoặc thẻ a bên trong)
+        // Mobile:  button full-width có text "Accept" (dialog mới của Bing)
+        const btn = page
+            .locator('#bnp_btn_accept a, #bnp_btn_accept, button:has-text("Accept"), button:has-text("Accept all")')
+            .first();
+        if (await btn.isVisible({ timeout: 4000 }).catch(() => false)) {
+            await btn.click().catch(() => {});
+            await sleep(500);
         }
     } catch {
         // Không có popup — bỏ qua

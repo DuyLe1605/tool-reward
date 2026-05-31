@@ -21,8 +21,13 @@ export const api = {
     getStatus: () => http.get<TaskStatus>("/tasks/status").then((r) => r.data),
 
     /** Bắt đầu task tìm kiếm. */
-    startTask: (payload: { profileIndices: number[]; maxSearches: number; mode: "p" | "s" }) =>
-        http.post<{ ok: boolean }>("/tasks/start", payload).then((r) => r.data),
+    startTask: (payload: {
+        profileIndices: number[];
+        maxSearches: number;
+        mobileSearches: number;
+        mode: "p" | "s";
+        searchType: "desktop" | "mobile" | "both";
+    }) => http.post<{ ok: boolean }>("/tasks/start", payload).then((r) => r.data),
 
     /** Dừng task đang chạy. */
     stopTask: () => http.post<{ ok: boolean }>("/tasks/stop").then((r) => r.data),

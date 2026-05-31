@@ -15,10 +15,15 @@ export interface EdgeProfile {
 export interface ProfileProgress {
     done: number;
     total: number;
+    desktopDone: number;
+    desktopTotal: number;
+    mobileDone: number;
+    mobileTotal: number;
 }
 
 export interface PointsSummary {
     today: number;
+    available: number;
     desktop: string;
     mobile: string;
     offers: number;
@@ -47,10 +52,14 @@ export interface LogLine {
 interface AppState {
     // Cài đặt người dùng (được persist)
     maxSearches: number;
+    mobileSearches: number;
+    searchType: "desktop" | "mobile" | "both";
     mode: "p" | "s";
     selectedIndices: number[];
     theme: "dark" | "light";
     setMaxSearches: (n: number) => void;
+    setMobileSearches: (n: number) => void;
+    setSearchType: (t: "desktop" | "mobile" | "both") => void;
     setMode: (m: "p" | "s") => void;
     setSelectedIndices: (indices: number[]) => void;
     setTheme: (t: "dark" | "light") => void;
@@ -62,7 +71,7 @@ interface AppState {
 
     // Tiến độ realtime (từ WebSocket)
     progress: Record<string, ProfileProgress>;
-    updateProgress: (profile: string, done: number, total: number) => void;
+    updateProgress: (profile: string, done: number, total: number, phase?: "desktop" | "mobile") => void;
     resetProgress: () => void;
 
     // Điểm thưởng (không persist — lấy từ server và cập nhật realtime qua WS)
@@ -92,10 +101,14 @@ export const useAppStore = create<AppState>()(
     persist(
         (set) => ({
             maxSearches: 35,
+            mobileSearches: 20,
+            searchType: "both",
             mode: "s",
             theme: "dark",
             selectedIndices: [],
             setMaxSearches: (n) => set({ maxSearches: n }),
+            setMobileSearches: (n) => set({ mobileSearches: n }),
+            setSearchType: (t) => set({ searchType: t }),
             setMode: (m) => set({ mode: m }),
             setTheme: (t) => set({ theme: t }),
             setSelectedIndices: (indices) => set({ selectedIndices: indices }),
@@ -111,8 +124,43 @@ export const useAppStore = create<AppState>()(
             clearLogs: () => set({ logs: [] }),
 
             progress: {},
-            updateProgress: (profile, done, total) =>
-                set((s) => ({ progress: { ...s.progress, [profile]: { done, total } } })),
+            updateProgress: (profile, done, total, phase) =>
+                set((s) => {
+                    const cur = s.progress[profile] ?? {
+                        done: 0,
+                        total,
+                        desktopDone: 0,
+                        desktopTotal: 0,
+                        mobileDone: 0,
+                        mobileTotal: 0,
+                    };
+                    if (phase === "desktop") {
+                        return {
+                            progress: {
+                                ...s.progress,
+                                [profile]: {
+                                    ...cur,
+                                    desktopDone: done,
+                                    desktopTotal: total,
+                                    done: done + cur.mobileDone,
+                                },
+                            },
+                        };
+                    } else if (phase === "mobile") {
+                        return {
+                            progress: {
+                                ...s.progress,
+                                [profile]: {
+                                    ...cur,
+                                    mobileDone: done,
+                                    mobileTotal: total,
+                                    done: cur.desktopDone + done,
+                                },
+                            },
+                        };
+                    }
+                    return { progress: { ...s.progress, [profile]: { ...cur, done, total } } };
+                }),
             resetProgress: () => set({ progress: {} }),
 
             points: {},
@@ -127,7 +175,13 @@ export const useAppStore = create<AppState>()(
         }),
         {
             name: "reward-app-settings",
-            partialize: (s) => ({ maxSearches: s.maxSearches, mode: s.mode, theme: s.theme }),
+            partialize: (s) => ({
+                maxSearches: s.maxSearches,
+                mobileSearches: s.mobileSearches,
+                searchType: s.searchType,
+                mode: s.mode,
+                theme: s.theme,
+            }),
         },
     ),
 );

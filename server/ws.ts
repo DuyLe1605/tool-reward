@@ -35,7 +35,7 @@ export function setupWebSocket(server: Server): void {
     logEmitter.on("message", (msg: WsMessage) => {
         if (msg.type === "progress") {
             const p = msg as ProgressMessage;
-            updateProgress(p.profile, p.done, p.total);
+            updateProgress(p.profile, p.done, p.total, p.phase);
         }
         if (msg.type === "points") {
             const p = msg as PointsMessage;

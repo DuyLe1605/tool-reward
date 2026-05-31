@@ -21,6 +21,7 @@ export interface ProgressMessage {
     profile: string;
     done: number;
     total: number;
+    phase?: "desktop" | "mobile";
     timestamp: number;
 }
 
@@ -32,6 +33,7 @@ export interface StatusMessage {
 
 export interface PointsSummary {
     today: number;
+    available: number; // tổng điểm có thể đổi thưởng (Available points trên dashboard)
     desktop: string; // e.g. "9/90"
     mobile: string; // e.g. "0/60"
     offers: number;
@@ -59,12 +61,13 @@ export function log(message: string): void {
 }
 
 /** Phát cập nhật tiến độ tìm kiếm cho một profile cụ thể. */
-export function emitProgress(profile: string, done: number, total: number): void {
+export function emitProgress(profile: string, done: number, total: number, phase?: "desktop" | "mobile"): void {
     logEmitter.emit("message", {
         type: "progress",
         profile,
         done,
         total,
+        phase,
         timestamp: Date.now(),
     } satisfies ProgressMessage);
 }

@@ -18,6 +18,8 @@ export interface AppConfig {
     rewardsUrl: string;
     minQueryWords: number;
     maxQueryWords: number;
+    /** Số lượt search mobile mỗi ngày (tối đa 20 = 60 điểm). */
+    mobileSearchCount: number;
     /** Thời gian nghỉ tối thiểu giữa các lượt search (ms). Tăng nếu bị Bing chặn. */
     minDelay: number;
     /** Thời gian nghỉ tối đa giữa các lượt search (ms). */
@@ -31,6 +33,7 @@ export const CONFIG: AppConfig = {
     rewardsUrl: "https://rewards.bing.com/earn",
     minQueryWords: 6,
     maxQueryWords: 10,
+    mobileSearchCount: 20,
     minDelay: 10000,
     maxDelay: 20000,
 };
