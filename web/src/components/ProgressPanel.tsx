@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Activity, TrendingUp } from "lucide-react";
 import { PointsDetailDialog } from "@/components/PointsDetailDialog";
 import { cn } from "@/lib/utils";
@@ -45,7 +46,7 @@ export function ProgressPanel() {
     const running = status?.running ?? false;
     const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
 
-    const emailByName = Object.fromEntries((profiles ?? []).map((p) => [p.name, p.email]));
+    const nameByEmail = Object.fromEntries((profiles ?? []).map((p) => [p.email, p.name]));
 
     const merged = { ...(status?.progress ?? {}), ...wsProgress };
     const runningEntries = Object.entries(merged);
@@ -196,126 +197,134 @@ export function ProgressPanel() {
                         </div>
                     </motion.div>
                     <CardContent className="p-0">
-                        <div className="divide-y divide-border/50">
-                            <AnimatePresence initial={true}>
-                                {pointEntries.map(([name, pts], idx) => {
-                                    const hasMobile = !!(pts.mobile && pts.mobile !== "0/0");
-                                    const dParts = (pts.desktop ?? "0/90").split("/").map(Number);
-                                    const mParts = hasMobile ? pts.mobile!.split("/").map(Number) : [0, 0];
-                                    const dTotal = dParts[1] || 90;
-                                    const mTotal = mParts[1] || 0;
-                                    const combined = dTotal + mTotal;
-                                    const dSlot = combined > 0 ? (dTotal / combined) * 100 : 100;
-                                    const dFill = dTotal > 0 ? (dParts[0] / dTotal) * 100 : 0;
-                                    const mFill = mTotal > 0 ? (mParts[0] / mTotal) * 100 : 0;
-                                    const dDone = dParts[0] >= dTotal;
-                                    const mDone = hasMobile && mParts[0] >= mTotal;
-                                    const avail = pts.available ?? 0;
-                                    return (
-                                        <motion.button
-                                            key={name}
-                                            layout
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -6 }}
-                                            transition={{
-                                                duration: 0.35,
-                                                delay: idx * 0.05,
-                                                ease: [0.22, 1, 0.36, 1],
-                                            }}
-                                            onClick={() => setSelectedProfile(name)}
-                                            className="w-full px-4 py-2.5 hover:bg-muted/30 transition-colors text-left"
-                                        >
-                                            {/* Row 1: name | available */}
-                                            <div className="flex items-baseline justify-between gap-2 mb-0.5">
-                                                <span className="text-sm font-semibold truncate text-foreground">
-                                                    {name}
-                                                </span>
-                                                <span className="text-base font-bold tabular-nums shrink-0 text-foreground">
-                                                    {avail.toLocaleString()}
-                                                </span>
-                                            </div>
-                                            {/* Row 2: email | today */}
-                                            <div className="flex items-baseline justify-between gap-2 mb-2">
-                                                <span className="text-[10px] text-muted-foreground/80 truncate">
-                                                    {emailByName[name] ?? ""}
-                                                </span>
-                                                <span className="text-xs font-semibold tabular-nums text-emerald-400/80 shrink-0">
-                                                    +{(pts.today ?? 0).toLocaleString()}
-                                                </span>
-                                            </div>
-                                            {/* Row 3: bar | counts */}
-                                            <div className="flex items-center gap-2.5">
-                                                <div className="flex-1 h-[3px] bg-muted/40 overflow-hidden flex">
-                                                    <div
-                                                        className="h-full relative overflow-hidden"
-                                                        style={{ width: hasMobile ? `${dSlot}%` : "100%" }}
-                                                    >
-                                                        <motion.div
-                                                            className={cn(
-                                                                "absolute inset-y-0 left-0 h-full",
-                                                                dDone ? "bg-emerald-500" : "bg-sky-500",
-                                                            )}
-                                                            initial={{ width: 0 }}
-                                                            animate={{ width: `${dFill}%` }}
-                                                            transition={{
-                                                                type: "spring",
-                                                                stiffness: 50,
-                                                                damping: 16,
-                                                                delay: idx * 0.04,
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    {hasMobile && (
-                                                        <div className="h-full relative overflow-hidden flex-1">
+                        <ScrollArea className="max-h-[60vh]">
+                            <div className="divide-y divide-border/50">
+                                <AnimatePresence initial={true}>
+                                    {pointEntries.map(([email, pts], idx) => {
+                                        const hasMobile = !!(pts.mobile && pts.mobile !== "0/0");
+                                        const dParts = (pts.desktop ?? "0/90").split("/").map(Number);
+                                        const mParts = hasMobile ? pts.mobile!.split("/").map(Number) : [0, 0];
+                                        const dTotal = dParts[1] || 90;
+                                        const mTotal = mParts[1] || 0;
+                                        const combined = dTotal + mTotal;
+                                        const dSlot = combined > 0 ? (dTotal / combined) * 100 : 100;
+                                        const dFill = dTotal > 0 ? (dParts[0] / dTotal) * 100 : 0;
+                                        const mFill = mTotal > 0 ? (mParts[0] / mTotal) * 100 : 0;
+                                        const dDone = dParts[0] >= dTotal;
+                                        const mDone = hasMobile && mParts[0] >= mTotal;
+                                        const avail = pts.available ?? 0;
+                                        return (
+                                            <motion.button
+                                                key={email}
+                                                layout
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -6 }}
+                                                transition={{
+                                                    duration: 0.35,
+                                                    delay: idx * 0.05,
+                                                    ease: [0.22, 1, 0.36, 1],
+                                                }}
+                                                onClick={() => setSelectedProfile(email)}
+                                                className="w-full px-4 py-2.5 hover:bg-muted/30 transition-colors text-left"
+                                            >
+                                                {/* Row 1: name | available */}
+                                                <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                                                    <span className="text-sm font-semibold truncate text-foreground">
+                                                        {nameByEmail[email] ?? email}
+                                                    </span>
+                                                    <span className="text-base font-bold tabular-nums shrink-0 text-foreground">
+                                                        {avail.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                {/* Row 2: email | today */}
+                                                <div className="flex items-baseline justify-between gap-2 mb-2">
+                                                    <span className="text-[10px] text-muted-foreground/80 truncate">
+                                                        {email}
+                                                    </span>
+                                                    <span className="text-xs font-semibold tabular-nums text-emerald-400/80 shrink-0">
+                                                        +{(pts.today ?? 0).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                {/* Row 3: bar | counts */}
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="flex-1 h-[3px] bg-muted/40 overflow-hidden flex">
+                                                        <div
+                                                            className="h-full relative overflow-hidden"
+                                                            style={{ width: hasMobile ? `${dSlot}%` : "100%" }}
+                                                        >
                                                             <motion.div
                                                                 className={cn(
                                                                     "absolute inset-y-0 left-0 h-full",
-                                                                    mDone ? "bg-fuchsia-500" : "bg-violet-500",
+                                                                    dDone ? "bg-emerald-500" : "bg-sky-500",
                                                                 )}
                                                                 initial={{ width: 0 }}
-                                                                animate={{ width: `${mFill}%` }}
+                                                                animate={{ width: `${dFill}%` }}
                                                                 transition={{
                                                                     type: "spring",
                                                                     stiffness: 50,
                                                                     damping: 16,
-                                                                    delay: idx * 0.04 + 0.08,
+                                                                    delay: idx * 0.04,
                                                                 }}
                                                             />
                                                         </div>
-                                                    )}
-                                                </div>
-                                                <span className="text-[10px] font-mono tabular-nums shrink-0">
-                                                    <span className={dDone ? "text-emerald-400/70" : "text-sky-400/60"}>
-                                                        {pts.desktop || "0/90"}
+                                                        {hasMobile && (
+                                                            <div className="h-full relative overflow-hidden flex-1">
+                                                                <motion.div
+                                                                    className={cn(
+                                                                        "absolute inset-y-0 left-0 h-full",
+                                                                        mDone ? "bg-fuchsia-500" : "bg-violet-500",
+                                                                    )}
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${mFill}%` }}
+                                                                    transition={{
+                                                                        type: "spring",
+                                                                        stiffness: 50,
+                                                                        damping: 16,
+                                                                        delay: idx * 0.04 + 0.08,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[10px] font-mono tabular-nums shrink-0">
+                                                        <span
+                                                            className={
+                                                                dDone ? "text-emerald-400/70" : "text-sky-400/60"
+                                                            }
+                                                        >
+                                                            {pts.desktop || "0/90"}
+                                                        </span>
+                                                        {hasMobile && (
+                                                            <>
+                                                                <span className="mx-1 text-muted-foreground/20">·</span>
+                                                                <span
+                                                                    className={
+                                                                        mDone
+                                                                            ? "text-fuchsia-400/70"
+                                                                            : "text-violet-400/60"
+                                                                    }
+                                                                >
+                                                                    {pts.mobile}
+                                                                </span>
+                                                            </>
+                                                        )}
                                                     </span>
-                                                    {hasMobile && (
-                                                        <>
-                                                            <span className="mx-1 text-muted-foreground/20">·</span>
-                                                            <span
-                                                                className={
-                                                                    mDone ? "text-fuchsia-400/70" : "text-violet-400/60"
-                                                                }
-                                                            >
-                                                                {pts.mobile}
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </motion.button>
-                                    );
-                                })}
-                            </AnimatePresence>
-                        </div>
+                                                </div>
+                                            </motion.button>
+                                        );
+                                    })}
+                                </AnimatePresence>
+                            </div>
+                        </ScrollArea>
                     </CardContent>
                 </Card>
             )}
 
             {selectedProfile && allPoints[selectedProfile] && (
                 <PointsDetailDialog
-                    name={selectedProfile}
-                    email={emailByName[selectedProfile]}
+                    name={nameByEmail[selectedProfile] ?? selectedProfile}
+                    email={selectedProfile}
                     pts={allPoints[selectedProfile]}
                     onClose={() => setSelectedProfile(null)}
                 />

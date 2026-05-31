@@ -78,12 +78,14 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
                 }
             }
 
-            // Tìm grid chứa bảng activity bằng cách dùng "Desktop Bing search" làm anchor.
+            // Tìm grid chứa bảng activity — anchor là "Desktop Bing search" (Gold/Silver)
+            // hoặc "Bing search" (Basic account không tách desktop/mobile).
             // Cấu trúc: grid > span | div>p(LABEL) | div(VALUE) | span
             // Walk up từ <p> đến grid container có inline style gridTemplateColumns.
+            const SEARCH_ANCHORS = ["Desktop Bing search", "Mobile Bing search", "Bing search"];
             let activityGrid: Element | null = null;
             for (const p of scope.querySelectorAll("p")) {
-                if (p.textContent?.trim() === "Desktop Bing search") {
+                if (SEARCH_ANCHORS.includes(p.textContent?.trim() ?? "")) {
                     let el: Element | null = p;
                     while (el) {
                         if ((el as HTMLElement).style?.gridTemplateColumns) {
@@ -104,13 +106,13 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
                     const label = p.textContent?.trim() ?? "";
                     const valueDiv = p.parentElement?.nextElementSibling;
                     if (!valueDiv) continue;
-                    if (label === "Desktop Bing search" || label === "Mobile Bing search") {
+                    if (label === "Desktop Bing search" || label === "Mobile Bing search" || label === "Bing search") {
                         const spans = valueDiv.querySelectorAll("span");
                         const val =
                             spans.length >= 2
                                 ? (spans[0].textContent ?? "") + (spans[1].textContent ?? "")
                                 : (valueDiv.textContent?.trim() ?? "");
-                        if (label === "Desktop Bing search") desktop = val;
+                        if (label === "Desktop Bing search" || label === "Bing search") desktop = val;
                         else mobile = val;
                     } else if (label === "Offers") {
                         offers = parseNum(valueDiv.textContent?.trim() ?? "");
@@ -147,7 +149,12 @@ export async function scrapeRewardsPoints(page: Page): Promise<PointsSummary | n
  * Pipeline đầy đủ: dashboard → lấy available → /earn → scrape breakdown → merge → emitPoints.
  * Dùng khi page đang ở BẤT KỲ trang nào của rewards.bing.com và đã đăng nhập.
  */
-export async function fetchAndEmitPoints(page: Page, profileName: string): Promise<void> {
+export async function fetchAndEmitPoints(
+    page: Page,
+    profileName: string,
+    profileEmail: string,
+    fallback?: { desktop?: string; mobile?: string },
+): Promise<void> {
     try {
         log(`[${profileName}] Đang cập nhật điểm...`);
         await page.goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
@@ -162,7 +169,12 @@ export async function fetchAndEmitPoints(page: Page, profileName: string): Promi
         const pts = await scrapeRewardsPoints(page);
         if (pts) {
             pts.available = available;
-            emitPoints(profileName, pts);
+            // Nếu scraper không lấy được desktop/mobile từ flyout, dùng giá trị thực tế từ run
+            if (!pts.desktop && fallback?.desktop) pts.desktop = fallback.desktop;
+            if (!pts.mobile && fallback?.mobile) pts.mobile = fallback.mobile;
+            // Dùng email làm key để tránh trùng khi đổi tên profile
+            const key = profileEmail || profileName;
+            emitPoints(key, pts);
             log(
                 `[${profileName}] Điểm: hôm nay=${pts.today} | desktop=${pts.desktop || "?"} | mobile=${pts.mobile || "?"} | khả dụng=${available}`,
             );

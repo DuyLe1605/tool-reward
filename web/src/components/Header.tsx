@@ -4,7 +4,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { api } from "@/api";
-import { NavLink } from "react-router-dom";
+import { NavLink, type NavLinkRenderProps } from "react-router-dom";
 import {
     AlertDialog,
     AlertDialogTrigger,
@@ -44,29 +44,30 @@ export function Header() {
                 </div>
             </div>
             <div className="flex items-center gap-3">
-                <NavLink to="/" end>
-                    {({ isActive }) => (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn("h-8 w-8", isActive && "text-primary bg-primary/10")}
-                            title="Trang chính"
-                        >
-                            <House className="w-4 h-4" />
-                        </Button>
-                    )}
+                <NavLink
+                    to="/"
+                    end
+                    className={({ isActive }: NavLinkRenderProps) =>
+                        cn(
+                            "inline-flex items-center justify-center rounded-md h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors",
+                            isActive ? "text-primary bg-primary/10" : "text-muted-foreground",
+                        )
+                    }
+                    title="Trang chính"
+                >
+                    <House className="w-4 h-4" />
                 </NavLink>
-                <NavLink to="/guide">
-                    {({ isActive }) => (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn("h-8 w-8", isActive && "text-primary bg-primary/10")}
-                            title="Hướng dẫn sử dụng"
-                        >
-                            <BookOpen className="w-4 h-4" />
-                        </Button>
-                    )}
+                <NavLink
+                    to="/guide"
+                    className={({ isActive }: NavLinkRenderProps) =>
+                        cn(
+                            "inline-flex items-center justify-center rounded-md h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors",
+                            isActive ? "text-primary bg-primary/10" : "text-muted-foreground",
+                        )
+                    }
+                    title="Hướng dẫn sử dụng"
+                >
+                    <BookOpen className="w-4 h-4" />
                 </NavLink>
                 <Button
                     variant="ghost"

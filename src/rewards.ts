@@ -131,7 +131,7 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
 /**
  * Điều hướng đến trang Rewards và hoàn thành tất cả nhiệm vụ có thể tự động hóa.
  */
-export async function completeRewardsActivities(page: Page, profileName = ""): Promise<void> {
+export async function completeRewardsActivities(page: Page, profileName = "", profileEmail = ""): Promise<void> {
     log("\n--- ĐANG XỬ LÝ CÁC NHIỆM VỤ REWARDS ---");
     try {
         // Warm-up: vào rewards.bing.com/ trước để trigger auth cookie, đợi redirect sang dashboard
@@ -228,7 +228,7 @@ export async function completeRewardsActivities(page: Page, profileName = ""): P
 
         // Scrape điểm sau khi hoàn thành tất cả tasks
         if (profileName) {
-            await fetchAndEmitPoints(page, profileName);
+            await fetchAndEmitPoints(page, profileName, profileEmail);
         }
     } catch (err) {
         log(`Lỗi Rewards: ${(err as Error).message}`);

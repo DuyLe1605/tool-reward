@@ -2,23 +2,20 @@ import { useEffect, useRef } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Trash2, Terminal } from "lucide-react";
 
 export function LogConsole() {
     const logs = useAppStore((s) => s.logs);
     const clearLogs = useAppStore((s) => s.clearLogs);
-    const bottomRef = useRef<HTMLDivElement>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
     const autoScrollRef = useRef(true);
 
-    // Auto-scroll xuống cuối khi có log mới — cuộn trong viewport của ScrollArea, không cuộn trang
+    // Auto-scroll xuống cuối khi có log mới — cuộn trực tiếp container, không cuộn trang
     useEffect(() => {
         if (!autoScrollRef.current) return;
-        const viewport = bottomRef.current?.closest("[data-radix-scroll-area-viewport]") as HTMLElement | null;
-        if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
-        }
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
     }, [logs]);
 
     return (
@@ -34,7 +31,7 @@ export function LogConsole() {
                 </Button>
             </div>
             <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
-                <ScrollArea className="h-full px-4 pb-4 scrollbar-thin">
+                <div ref={scrollRef} className="h-full overflow-y-auto px-4 pb-4 scrollbar-thin">
                     {logs.length === 0 ? (
                         <p className="text-xs text-muted-foreground py-4 text-center">Chưa có log...</p>
                     ) : (
@@ -65,10 +62,9 @@ export function LogConsole() {
                                     </span>
                                 </div>
                             ))}
-                            <div ref={bottomRef} />
                         </div>
                     )}
-                </ScrollArea>
+                </div>
             </CardContent>
         </Card>
     );

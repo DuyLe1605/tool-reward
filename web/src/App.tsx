@@ -77,17 +77,17 @@ function AppInner() {
                 <Route
                     path="/"
                     element={
-                        <main className="flex-1 max-w-350 mx-auto w-full px-3 py-3 grid grid-cols-1 lg:grid-cols-[280px_1fr_260px] gap-3">
-                            {/* Cột trái: profile + điều khiển */}
+                        <main className="max-w-350 mx-auto w-full px-3 py-3 grid grid-cols-1 lg:grid-cols-[280px_1fr_260px] gap-3 items-start">
+                            {/* Cột trái: profile + điều khiển — tông scroll xuống thấy hết */}
                             <div className="flex flex-col gap-3">
                                 <ProfileList />
                                 <ControlPanel />
                             </div>
-                            {/* Cột giữa: log */}
-                            <div className="lg:h-[calc(100vh-4.5rem)] flex flex-col">
+                            {/* Cột giữa: log — sticky + fixed height, LogConsole tự scroll */}
+                            <div className="lg:sticky lg:top-[4.5rem] lg:h-[calc(100vh-4.75rem)] flex flex-col">
                                 <LogConsole />
                             </div>
-                            {/* Cột phải: tiến độ + điểm */}
+                            {/* Cột phải: tiến độ + điểm — tông scroll xuống thấy hết */}
                             <div className="flex flex-col gap-3">
                                 <ProgressPanel />
                             </div>

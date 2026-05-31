@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { api } from "@/api";
 import { useAppStore } from "@/store/useAppStore";
@@ -354,17 +355,21 @@ export function ControlPanel() {
                     </Button>
                 )}
 
-                {stopping && (
-                    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
-                        <div className="bg-card border border-border rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-55">
-                            <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                            <div className="text-center">
-                                <p className="font-semibold text-sm">Đang dừng tiến trình</p>
-                                <p className="text-xs text-muted-foreground mt-1">Chờ tác vụ hiện tại hoàn thành...</p>
+                {stopping &&
+                    createPortal(
+                        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 min-w-55">
+                                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                                <div className="text-center">
+                                    <p className="font-semibold text-sm">Đang dừng tiến trình</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Chờ tác vụ hiện tại hoàn thành...
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                )}
+                        </div>,
+                        document.body,
+                    )}
 
                 {(startMutation.isError || checkPointsMutation.isError) && null}
             </CardContent>

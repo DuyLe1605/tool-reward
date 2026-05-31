@@ -286,7 +286,7 @@ export async function performProfileTask(
                         args: launchArgs,
                     });
                     const ptsPage = await ptsCtx.newPage();
-                    await fetchAndEmitPoints(ptsPage, selectedProfile.name);
+                    await fetchAndEmitPoints(ptsPage, selectedProfile.name, selectedProfile.email);
                     await ptsCtx.close();
                 } catch {
                     // Điểm không scrape được — bỏ qua
@@ -457,7 +457,7 @@ export async function performProfileTask(
             log(`${prefix} Chuẩn bị vào trang Rewards...`);
             await page.goto("https://www.bing.com", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
             await sleep(2000);
-            await completeRewardsActivities(page, selectedProfile.name);
+            await completeRewardsActivities(page, selectedProfile.name, selectedProfile.email);
         }
 
         // Mobile search (chỉ khi searchType = "both") — đóng desktop TRƯỚC khi mở mobile
@@ -471,10 +471,18 @@ export async function performProfileTask(
                 const ptsCtx = await chromium.launchPersistentContext(contextUserDataDir, {
                     channel: "msedge",
                     headless: false,
+                    userAgent:
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
+                    viewport: { width: 1280, height: 720 },
+                    ignoreDefaultArgs: ["--enable-automation"],
                     args: launchArgs,
                 });
                 const ptsPage = await ptsCtx.newPage();
-                await fetchAndEmitPoints(ptsPage, selectedProfile.name);
+                // Fallback: nếu scraper không lấy được từ flyout, dùng số lượt search thực tế
+                await fetchAndEmitPoints(ptsPage, selectedProfile.name, selectedProfile.email, {
+                    desktop: `${totalSearched}/${maxSearches}`,
+                    mobile: `${mobileSearches}/${mobileSearches}`,
+                });
                 await ptsCtx.close();
             } catch {
                 /* bỏ qua */

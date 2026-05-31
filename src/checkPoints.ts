@@ -81,7 +81,7 @@ export async function checkProfilePoints(profile: EdgeProfile): Promise<void> {
             }
 
             // Scrape điểm
-            await fetchAndEmitPoints(page, profile.name);
+            await fetchAndEmitPoints(page, profile.name, profile.email);
         } finally {
             await context.close().catch(() => {});
         }
