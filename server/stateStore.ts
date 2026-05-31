@@ -2,6 +2,8 @@
  * @fileoverview Lưu trữ state ứng dụng vào file JSON (server-side persistence).
  *
  * Dữ liệu được lưu tại data/app-state.json kế bên thư mục server/.
+ * Khi chạy trong Electron (packaged), vị trí file được điều hướng sang
+ * app.getPath("userData") thông qua biến môi trường APP_DATA_DIR.
  * Khi sang ngày mới, points và lastCheckedDate bị xóa tự động.
  */
 
@@ -14,7 +16,10 @@ export interface AppState {
     points: Record<string, PointsSummary>;
 }
 
-const STATE_FILE = path.join(__dirname, "..", "data", "app-state.json");
+// Khi chạy trong Electron packaged app, APP_DATA_DIR = app.getPath("userData")
+// Khi chạy CLI / dev, fallback về thư mục data/ bên cạnh project root
+const DATA_DIR = process.env.APP_DATA_DIR ?? path.join(__dirname, "..", "data");
+const STATE_FILE = path.join(DATA_DIR, "app-state.json");
 
 function todayStr(): string {
     return new Date().toDateString();
