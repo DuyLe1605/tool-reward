@@ -12,6 +12,7 @@ import type { Page } from "playwright";
 import { sleep } from "./utils";
 import type { PointsSummary } from "./logger";
 import { log, emitPoints } from "./logger";
+import { dismissCookieConsent } from "./browser";
 
 /**
  * Scrape "Available points" từ trang dashboard (rewards.bing.com/dashboard).
@@ -150,6 +151,7 @@ export async function fetchAndEmitPoints(page: Page, profileName: string): Promi
     try {
         log(`[${profileName}] Đang cập nhật điểm...`);
         await page.goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+        await dismissCookieConsent(page).catch(() => {});
         await page.waitForURL("**/dashboard**", { timeout: 8000 }).catch(() => {});
         await sleep(1500);
         const available = await scrapeAvailablePoints(page);

@@ -19,7 +19,7 @@ import { sleep, copyDirRecursive } from "./utils";
 import { fetchRobustWikiText, getFallbackText } from "./wiki";
 import { dismissCookieConsent } from "./browser";
 import { completeRewardsActivities } from "./rewards";
-import { scrapeRewardsPoints, scrapeAvailablePoints } from "./pointsScraper";
+import { scrapeRewardsPoints, scrapeAvailablePoints, fetchAndEmitPoints } from "./pointsScraper";
 import { log, emitProgress, emitPoints } from "./logger";
 import { taskController } from "./taskController";
 import type { EdgeProfile } from "./profiles";
@@ -276,31 +276,17 @@ export async function performProfileTask(
                 await performMobileSearch(cookies, selectedProfile.name, mobileSearches);
             }
 
-            // Scrape điểm sau mobile search — mở lại headless để vào rewards.bing.com
+            // Scrape điểm sau mobile search
             if (!taskController.shouldStop) {
                 try {
                     log(`${prefix} Scraping điểm sau mobile search...`);
                     const ptsCtx = await chromium.launchPersistentContext(contextUserDataDir, {
                         channel: "msedge",
-                        headless: true,
+                        headless: false,
                         args: launchArgs,
                     });
                     const ptsPage = await ptsCtx.newPage();
-                    await ptsPage
-                        .goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 20000 })
-                        .catch(() => {});
-                    await sleep(1500);
-                    await ptsPage.waitForURL("**/dashboard**", { timeout: 10000 }).catch(() => {});
-                    const available = await scrapeAvailablePoints(ptsPage);
-                    await ptsPage
-                        .goto("https://rewards.bing.com/earn", { waitUntil: "domcontentloaded", timeout: 20000 })
-                        .catch(() => {});
-                    await sleep(2000);
-                    const pts = await scrapeRewardsPoints(ptsPage);
-                    if (pts) {
-                        pts.available = available;
-                        emitPoints(selectedProfile.name, pts);
-                    }
+                    await fetchAndEmitPoints(ptsPage, selectedProfile.name);
                     await ptsCtx.close();
                 } catch {
                     // Điểm không scrape được — bỏ qua
@@ -480,8 +466,21 @@ export async function performProfileTask(
             taskController.unregisterContext(context);
             await context.close();
             await performMobileSearch(cookies, selectedProfile.name, mobileSearches);
+            // Scrape điểm lại sau khi mobile xong để cập nhật mobile count + available
+            try {
+                const ptsCtx = await chromium.launchPersistentContext(contextUserDataDir, {
+                    channel: "msedge",
+                    headless: false,
+                    args: launchArgs,
+                });
+                const ptsPage = await ptsCtx.newPage();
+                await fetchAndEmitPoints(ptsPage, selectedProfile.name);
+                await ptsCtx.close();
+            } catch {
+                /* bỏ qua */
+            }
             log(`\n<<< HOÀN THÀNH: ${prefix}`);
-            return; // context đã đóng, không đóng lần 2
+            return;
         }
 
         log(`\n<<< HOÀN THÀNH: ${prefix}`);

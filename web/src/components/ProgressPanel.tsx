@@ -208,68 +208,70 @@ export function ProgressPanel() {
                                     <button
                                         key={name}
                                         onClick={() => setSelectedProfile(name)}
-                                        className="w-full px-4 py-2.5 hover:bg-accent/40 transition-colors text-left group"
+                                        className="w-full px-4 py-3 hover:bg-accent/40 transition-colors text-left group"
                                     >
-                                        <div className="flex items-center gap-2 mb-2">
+                                        {/* Row 1: name/email + available */}
+                                        <div className="flex items-start gap-3 mb-2.5">
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-medium truncate leading-snug group-hover:text-primary transition-colors">
+                                                <div className="text-sm font-semibold truncate leading-snug group-hover:text-primary transition-colors">
                                                     {name}
                                                 </div>
                                                 {emailByName[name] && (
-                                                    <div className="text-[10px] text-muted-foreground/60 truncate leading-tight">
+                                                    <div className="text-[10px] text-muted-foreground/50 truncate leading-tight mt-0.5">
                                                         {emailByName[name]}
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className="text-sm font-bold tabular-nums shrink-0">
-                                                +{(pts.today ?? 0).toLocaleString()}
+                                            <span
+                                                className={`text-base font-bold tabular-nums shrink-0 leading-snug ${avail > 0 ? "text-foreground" : "text-muted-foreground/25"}`}
+                                            >
+                                                {avail.toLocaleString()}
                                             </span>
                                         </div>
-                                        {/* available + bar */}
-                                        {avail > 0 && (
-                                            <div className="text-[10px] text-muted-foreground/50 tabular-nums mb-1">
-                                                Khả dụng: {avail.toLocaleString()}
-                                            </div>
-                                        )}
-                                        <div className="flex items-center gap-2">
-                                            <div
-                                                className="flex-1 h-1 bg-muted rounded-full overflow-hidden flex"
-                                                style={{ gap: "1px" }}
-                                            >
+                                        {/* Row 2: progress bar — 2px tall, no gap between segments */}
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="flex-1 h-[3px] bg-muted/60 rounded-full overflow-hidden flex">
                                                 <div
                                                     className="h-full relative overflow-hidden"
                                                     style={{ width: hasMobile ? `${dSlot}%` : "100%" }}
                                                 >
                                                     <div
-                                                        className={`absolute inset-y-0 left-0 h-full rounded-full transition-all duration-700 ${dDone ? "bg-emerald-500/70" : "bg-sky-500/70"}`}
+                                                        className={`absolute inset-y-0 left-0 h-full transition-all duration-700 ${dDone ? "bg-emerald-500" : "bg-sky-500"}`}
                                                         style={{ width: `${dFill}%` }}
                                                     />
                                                 </div>
                                                 {hasMobile && (
                                                     <div className="h-full relative overflow-hidden flex-1">
                                                         <div
-                                                            className={`absolute inset-y-0 left-0 h-full rounded-full transition-all duration-700 ${mDone ? "bg-emerald-500/70" : "bg-violet-500/70"}`}
+                                                            className={`absolute inset-y-0 left-0 h-full transition-all duration-700 ${mDone ? "bg-fuchsia-500" : "bg-violet-500"}`}
                                                             style={{ width: `${mFill}%` }}
                                                         />
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className="text-[10px] font-mono shrink-0">
-                                                <span className={dDone ? "text-emerald-500/70" : "text-sky-400/60"}>
+                                            <span className="text-[10px] font-mono shrink-0 tabular-nums">
+                                                <span className={dDone ? "text-emerald-400/80" : "text-sky-400/70"}>
                                                     {pts.desktop || "0/90"}
                                                 </span>
                                                 {hasMobile && (
                                                     <>
-                                                        <span className="mx-1 text-muted-foreground/30">·</span>
+                                                        <span className="mx-1 text-muted-foreground/20">·</span>
                                                         <span
                                                             className={
-                                                                mDone ? "text-emerald-500/70" : "text-violet-400/60"
+                                                                mDone ? "text-fuchsia-400/80" : "text-violet-400/70"
                                                             }
                                                         >
                                                             {pts.mobile}
                                                         </span>
                                                     </>
                                                 )}
+                                            </span>
+                                        </div>
+                                        {/* Row 3: today */}
+                                        <div className="flex items-baseline justify-between gap-2">
+                                            <span className="text-xs text-muted-foreground/70">Hôm nay</span>
+                                            <span className="text-sm font-semibold tabular-nums text-foreground">
+                                                +{(pts.today ?? 0).toLocaleString()}
                                             </span>
                                         </div>
                                     </button>
