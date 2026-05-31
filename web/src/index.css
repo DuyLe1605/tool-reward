@@ -30,25 +30,37 @@
 /* Light theme (default) */
 :root {
     --radius: 0.625rem;
-    --background: oklch(0.97 0 0);
-    --foreground: oklch(0.13 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.13 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.13 0 0);
-    --primary: oklch(0.52 0.22 270);
+
+    /* Nền có subtle indigo tint thay vì trắng thuần */
+    --background: oklch(0.975 0.006 265);
+    --foreground: oklch(0.18 0.015 265);
+
+    /* Card trắng ấm hơn, có tint nhẹ */
+    --card: oklch(0.995 0.004 265);
+    --card-foreground: oklch(0.18 0.015 265);
+    --popover: oklch(0.995 0.004 265);
+    --popover-foreground: oklch(0.18 0.015 265);
+
+    /* Primary: indigo đẹp, đủ contrast trên nền sáng */
+    --primary: oklch(0.50 0.24 268);
     --primary-foreground: oklch(0.99 0 0);
-    --secondary: oklch(0.93 0 0);
-    --secondary-foreground: oklch(0.13 0 0);
-    --muted: oklch(0.93 0 0);
-    --muted-foreground: oklch(0.48 0 0);
-    --accent: oklch(0.93 0 0);
-    --accent-foreground: oklch(0.13 0 0);
-    --destructive: oklch(0.6 0.21 22);
+
+    /* Secondary / muted: xám có tint indigo nhẹ */
+    --secondary: oklch(0.925 0.010 265);
+    --secondary-foreground: oklch(0.25 0.015 265);
+    --muted: oklch(0.930 0.008 265);
+    --muted-foreground: oklch(0.46 0.012 265);
+    --accent: oklch(0.920 0.014 265);
+    --accent-foreground: oklch(0.22 0.020 265);
+
+    /* Destructive: red chuẩn */
+    --destructive: oklch(0.58 0.22 22);
     --destructive-foreground: oklch(0.99 0 0);
-    --border: oklch(0 0 0 / 10%);
-    --input: oklch(0 0 0 / 8%);
-    --ring: oklch(0.52 0.22 270 / 40%);
+
+    /* Border/Input có tint indigo mờ */
+    --border: oklch(0.88 0.012 265);
+    --input: oklch(0.90 0.010 265);
+    --ring: oklch(0.50 0.24 268 / 35%);
 }
 
 /* Dark theme */
@@ -97,6 +109,32 @@ input[type="number"] {
 }
 
 /* Native scrollbar styling */
+/* Global scrollbar — áp dụng cho toàn bộ app */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.4 0 0 / 45%) transparent;
+}
+*::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+    background: oklch(0.4 0 0 / 40%);
+    border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.55 0 0 / 60%);
+}
+.dark *::-webkit-scrollbar-thumb {
+    background: oklch(0.55 0 0 / 35%);
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.65 0 0 / 55%);
+}
+
 .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: oklch(0.65 0 0 / 40%) transparent;
