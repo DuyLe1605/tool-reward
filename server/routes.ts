@@ -1,6 +1,7 @@
 /**
  * @fileoverview REST API routes cho Web UI.
  *
+ * GET  /api/status          — Health check (dùng bởi Electron waitForServer)
  * GET  /api/profiles        — Danh sách profile Edge
  * GET  /api/tasks/status    — Trạng thái task hiện tại
  * POST /api/tasks/start     — Bắt đầu task { profileIndices, maxSearches, mode }
@@ -13,6 +14,13 @@ import { getTaskStatus, startTask, stopTask, startCheckPoints } from "./taskMana
 import { getAppState, setLastCheckedDate } from "./stateStore";
 
 const router = Router();
+
+// ── Health check — dùng bởi Electron main để phát hiện khi server sẵn sàng ──
+router.get("/status", (_req, res) => {
+    res.json({ ok: true });
+});
+
+
 
 router.get("/profiles", (_req, res) => {
     res.json(getEdgeProfiles());

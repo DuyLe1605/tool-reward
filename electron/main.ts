@@ -73,7 +73,10 @@ async function startServer(): Promise<void> {
     process.env.APP_DATA_DIR = app.getPath("userData");
     // Truyền port cố định cho server — bỏ qua findFreePort để tránh race condition
     process.env.APP_SERVER_PORT = String(SERVER_PORT);
+    // Truyền đường dẫn web/dist — cần thiết vì __dirname trong compiled server lệch 1 cấp so với dev
+    process.env.APP_WEB_DIST = path.join(app.getAppPath(), "web", "dist");
     log.info(`[main] APP_DATA_DIR = ${process.env.APP_DATA_DIR}`);
+    log.info(`[main] APP_WEB_DIST = ${process.env.APP_WEB_DIST}`);
 
     if (app.isPackaged) {
         // Packaged: server đã được compile sang JS, nằm trong resources/app/dist/
@@ -101,7 +104,10 @@ function waitForServer(port: number, timeoutMs = 20000): Promise<void> {
                 }
             });
             req.on("error", retry);
-            req.setTimeout(1000, () => { req.destroy(); retry(); });
+            req.setTimeout(1000, () => {
+                req.destroy();
+                retry();
+            });
         };
 
         const retry = () => {

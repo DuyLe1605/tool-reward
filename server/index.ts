@@ -17,7 +17,9 @@ import { setupWebSocket } from "./ws";
 import apiRoutes from "./routes";
 
 const PREFERRED_PORT = 3789;
-const WEB_DIST = path.join(__dirname, "..", "web", "dist");
+// Khi chạy trong Electron (packaged), main.ts truyền path chính xác qua APP_WEB_DIST.
+// Khi chạy CLI (ts-node từ thư mục server/), __dirname = server/ nên path dưới vẫn đúng.
+const WEB_DIST = process.env.APP_WEB_DIST ?? path.join(__dirname, "..", "web", "dist");
 
 /** Tìm cổng trống bắt đầu từ preferred. */
 function findFreePort(preferred: number): Promise<number> {
@@ -34,9 +36,7 @@ function findFreePort(preferred: number): Promise<number> {
 async function main(): Promise<void> {
     // Khi chạy trong Electron, APP_SERVER_PORT được set cố định → dùng luôn, không cần findFreePort
     // Khi chạy CLI standalone → tìm cổng trống tự động
-    const port = process.env.APP_SERVER_PORT
-        ? Number(process.env.APP_SERVER_PORT)
-        : await findFreePort(PREFERRED_PORT);
+    const port = process.env.APP_SERVER_PORT ? Number(process.env.APP_SERVER_PORT) : await findFreePort(PREFERRED_PORT);
 
     const app = express();
     app.use(express.json());
