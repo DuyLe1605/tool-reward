@@ -46,9 +46,11 @@ let isQuitting = false;
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
     app.quit();
+    process.exit(0);
 }
 app.on("second-instance", () => {
     if (mainWindow) {
+        if (!mainWindow.isVisible()) mainWindow.show();
         if (mainWindow.isMinimized()) mainWindow.restore();
         mainWindow.focus();
     }

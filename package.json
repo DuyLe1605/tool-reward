@@ -1,7 +1,7 @@
 {
     "name": "bing-rewards-tool",
     "description": "Microsoft Rewards Auto Search Tool",
-    "version": "9.0.6",
+    "version": "9.0.7",
     "main": "dist-electron/main.js",
     "scripts": {
         "start": "ts-node --project tsconfig.json src/cli.ts",
@@ -41,6 +41,12 @@
             "output": "release",
             "buildResources": "assets"
         },
+        "extraResources": [
+            {
+                "from": "assets/icon.ico",
+                "to": "icon.ico"
+            }
+        ],
         "files": [
             "dist-electron/**",
             "dist/**",

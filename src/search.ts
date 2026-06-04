@@ -8,9 +8,6 @@
  */
 
 import { chromium } from "playwright";
-import type { BrowserContext } from "playwright";
-
-type BrowserCookies = Awaited<ReturnType<BrowserContext["cookies"]>>;
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -35,25 +32,26 @@ const MOBILE_USER_AGENT =
  * Nhận cookies đã được extract từ desktop context (context đó đã đóng trước khi gọi hàm này).
  * Bing Rewards trao tối đa 20 lượt × 3pts = 60pts/ngày cho mobile.
  */
-async function performMobileSearch(cookies: BrowserCookies, profileName: string, mobileCount: number): Promise<void> {
+async function performMobileSearch(
+    contextUserDataDir: string,
+    launchArgs: string[],
+    profileName: string,
+    mobileCount: number,
+): Promise<void> {
     const prefix = `[${profileName}] [📱 Mobile]`;
     log(`${prefix} Bắt đầu search mobile (${mobileCount} lượt)...`);
 
-    const browser = await chromium.launch({
+    const mobileContext = await chromium.launchPersistentContext(contextUserDataDir, {
         channel: "msedge",
         headless: false,
-        args: ["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-infobars"],
-    });
-
-    const mobileContext = await browser.newContext({
         userAgent: MOBILE_USER_AGENT,
         viewport: { width: 390, height: 844 },
         isMobile: true,
         hasTouch: true,
+        ignoreDefaultArgs: ["--enable-automation"],
+        args: launchArgs,
     });
-
-    // Inject cookies từ desktop → mobile context để giữ đăng nhập
-    await mobileContext.addCookies(cookies);
+    taskController.registerContext(mobileContext);
 
     const page = await mobileContext.newPage();
     await page.addInitScript(() => {
@@ -201,7 +199,8 @@ async function performMobileSearch(cookies: BrowserCookies, profileName: string,
             }
         }
     } finally {
-        await browser.close().catch(() => {});
+        taskController.unregisterContext(mobileContext);
+        await mobileContext.close().catch(() => {});
     }
 
     log(`${prefix} ✅ Hoàn thành mobile search (${searched}/${mobileCount} lượt).`);
@@ -260,20 +259,8 @@ export async function performProfileTask(
     // ── Mobile-only: chỉ cần cookies, không cần mở cửa sổ Edge ───────────────
     if (searchType === "mobile") {
         try {
-            log(`${prefix} Lấy cookies (headless)...`);
-            const ctx = await chromium.launchPersistentContext(contextUserDataDir, {
-                channel: "msedge",
-                headless: true,
-                args: launchArgs,
-            });
-            // Tải một trang nhỏ để đảm bảo cookie store được hydrate
-            const p = await ctx.newPage();
-            await p.goto("https://www.bing.com", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
-            const cookies = await ctx.cookies();
-            await ctx.close();
-
             if (!taskController.shouldStop && mobileSearches > 0) {
-                await performMobileSearch(cookies, selectedProfile.name, mobileSearches);
+                await performMobileSearch(contextUserDataDir, launchArgs, selectedProfile.name, mobileSearches);
             }
 
             // Scrape điểm sau mobile search
@@ -295,7 +282,13 @@ export async function performProfileTask(
         } catch (err) {
             log(`${prefix} LỖI: ${(err as Error).message}`);
         } finally {
-            if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
+            if (tempDir) {
+                try {
+                    fs.rmSync(tempDir, { recursive: true, force: true });
+                } catch {
+                    /* bỏ qua */
+                }
+            }
         }
         log(`\n<<< HOÀN THÀNH: ${prefix}`);
         return;
@@ -462,10 +455,9 @@ export async function performProfileTask(
 
         // Mobile search (chỉ khi searchType = "both") — đóng desktop TRƯỚC khi mở mobile
         if (!taskController.shouldStop && searchType === "both" && mobileSearches > 0) {
-            const cookies = await context.cookies();
             taskController.unregisterContext(context);
             await context.close();
-            await performMobileSearch(cookies, selectedProfile.name, mobileSearches);
+            await performMobileSearch(contextUserDataDir, launchArgs, selectedProfile.name, mobileSearches);
             // Scrape điểm lại sau khi mobile xong để cập nhật mobile count + available
             try {
                 const ptsCtx = await chromium.launchPersistentContext(contextUserDataDir, {

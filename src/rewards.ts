@@ -151,24 +151,33 @@ async function claimPendingPoints(page: Page): Promise<void> {
             return;
         }
 
-        log("Đang claim điểm pending...");
-        await claimTrigger.click().catch(() => {});
+        log("Đang mở flyout để claim điểm pending...");
+        try {
+            await claimTrigger.click({ force: true });
+        } catch (clickErr) {
+            log(`⚠️  Lỗi khi click Ready to claim: ${(clickErr as Error).message}`);
+            return;
+        }
 
         // Chờ flyout dialog "Claim points" xuất hiện
         const dialog = page.locator('section[role="dialog"]').filter({ hasText: /claim points/i }).first();
         await dialog.waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
-        await sleep(1000);
+        await sleep(1500);
 
         // Click nút "Claim points" (brand button trong footer dialog)
         const claimBtn = dialog
-            .locator('button[data-react-aria-pressable="true"]')
-            .filter({ hasText: /^claim points$/i })
+            .locator('button, [role="button"], [data-react-aria-pressable="true"]')
+            .filter({ hasText: /claim points/i })
             .first();
 
         if (await claimBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await claimBtn.click().catch(() => {});
-            log("✅ Đã claim điểm pending.");
-            await sleep(2000);
+            try {
+                await claimBtn.click({ force: true });
+                log("✅ Đã click nút Claim points.");
+                await sleep(2500);
+            } catch (clickErr) {
+                log(`⚠️  Lỗi khi click nút Claim points: ${(clickErr as Error).message}`);
+            }
         } else {
             log("⚠️  Không tìm thấy nút claim trong dialog.");
         }
@@ -176,7 +185,7 @@ async function claimPendingPoints(page: Page): Promise<void> {
         // Đóng dialog — bỏ qua "Earn more points"
         const closeBtn = dialog.locator('button[aria-label="Close"]').first();
         if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await closeBtn.click().catch(() => {});
+            await closeBtn.click({ force: true }).catch(() => {});
         } else {
             await page.keyboard.press("Escape");
         }
