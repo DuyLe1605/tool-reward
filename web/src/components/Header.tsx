@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { Moon, Sun, Power, BookOpen, House } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/api";
 import { NavLink, type NavLinkRenderProps } from "react-router-dom";
 import {
@@ -21,6 +21,16 @@ export function Header() {
     const theme = useAppStore((s) => s.theme);
     const setTheme = useAppStore((s) => s.setTheme);
     const [exiting, setExiting] = useState(false);
+    const [version, setVersion] = useState("9.0.7");
+
+    useEffect(() => {
+        fetch("/api/status")
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.version) setVersion(data.version);
+            })
+            .catch(() => {});
+    }, []);
 
     const handleExit = async () => {
         setExiting(true);
@@ -40,7 +50,7 @@ export function Header() {
                 </div>
                 <div>
                     <h1 className="font-semibold text-sm text-foreground">Bing Rewards Auto Search</h1>
-                    <p className="text-xs text-muted-foreground">v9.0 · Multi-Profile</p>
+                    <p className="text-xs text-muted-foreground">v{version} · Multi-Profile</p>
                 </div>
             </div>
             <div className="flex items-center gap-3">

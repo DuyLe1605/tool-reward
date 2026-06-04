@@ -9,15 +9,33 @@
  */
 
 import { Router } from "express";
+import path from "path";
+import fs from "fs";
 import { getEdgeProfiles } from "../src/profiles";
 import { getTaskStatus, startTask, stopTask, startCheckPoints } from "./taskManager";
 import { getAppState, setLastCheckedDate } from "./stateStore";
 
 const router = Router();
 
+function getVersion(): string {
+    try {
+        let pkgPath = path.join(__dirname, "..", "package.json");
+        if (fs.existsSync(pkgPath)) {
+            return JSON.parse(fs.readFileSync(pkgPath, "utf8")).version || "9.0.7";
+        }
+        pkgPath = path.join(__dirname, "..", "..", "package.json");
+        if (fs.existsSync(pkgPath)) {
+            return JSON.parse(fs.readFileSync(pkgPath, "utf8")).version || "9.0.7";
+        }
+    } catch {
+        // ignore
+    }
+    return "9.0.7";
+}
+
 // ── Health check — dùng bởi Electron main để phát hiện khi server sẵn sàng ──
 router.get("/status", (_req, res) => {
-    res.json({ ok: true });
+    res.json({ ok: true, version: getVersion() });
 });
 
 
