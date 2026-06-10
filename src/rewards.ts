@@ -139,12 +139,13 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
  */
 async function claimPendingPoints(page: Page): Promise<void> {
     try {
-        // Tìm nút "Ready to claim" — chứa text đó trên dashboard
-        const claimTrigger = page
-            .locator('button, [role="button"], [data-react-aria-pressable="true"]')
-            .filter({ hasText: /ready to claim/i })
-            .first();
+        // "Ready to claim" chỉ xuất hiện ở dashboard, không phải trang /earn.
+        await page.goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+        await page.waitForURL("**/dashboard**", { timeout: 8000 }).catch(() => {});
+        await page.waitForLoadState("load", { timeout: 10000 }).catch(() => {});
+        await sleep(1500);
 
+        const claimTrigger = page.locator('button:has-text("Ready to claim")').first();
         const isVisible = await claimTrigger.isVisible({ timeout: 3000 }).catch(() => false);
         if (!isVisible) {
             log("Không có điểm pending cần claim.");
@@ -161,25 +162,46 @@ async function claimPendingPoints(page: Page): Promise<void> {
 
         // Chờ flyout dialog "Claim points" xuất hiện
         const dialog = page.locator('section[role="dialog"]').filter({ hasText: /claim points/i }).first();
-        await dialog.waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+        const dialogVisible = await dialog.waitFor({ state: "visible", timeout: 6000 }).then(
+            () => true,
+            () => false,
+        );
+        if (!dialogVisible) {
+            log("⚠️  Không mở được flyout Claim points.");
+            return;
+        }
         await sleep(1500);
 
+        const earnedMoreBtn = dialog.getByRole("link", { name: /earn more points/i }).first();
+        if (await earnedMoreBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            log("Điểm pending đã được claim trước đó.");
+            const closeBtn = dialog.locator('button[aria-label="Close"]').first();
+            if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+                await closeBtn.click({ force: true }).catch(() => {});
+            } else {
+                await page.keyboard.press("Escape").catch(() => {});
+            }
+            await sleep(1000);
+            return;
+        }
+
         // Click nút "Claim points" (brand button trong footer dialog)
-        const claimBtn = dialog
-            .locator('button, [role="button"], [data-react-aria-pressable="true"]')
-            .filter({ hasText: /claim points/i })
-            .first();
+        const claimBtn = dialog.getByRole("button", { name: /^claim points$/i }).first();
 
         if (await claimBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             try {
                 await claimBtn.click({ force: true });
                 log("✅ Đã click nút Claim points.");
-                await sleep(2500);
+                await dialog
+                    .getByRole("link", { name: /earn more points/i })
+                    .waitFor({ state: "visible", timeout: 6000 })
+                    .catch(() => {});
+                await sleep(1500);
             } catch (clickErr) {
                 log(`⚠️  Lỗi khi click nút Claim points: ${(clickErr as Error).message}`);
             }
         } else {
-            log("⚠️  Không tìm thấy nút claim trong dialog.");
+            log("⚠️  Không tìm thấy nút Claim points trong dialog.");
         }
 
         // Đóng dialog — bỏ qua "Earn more points"
@@ -187,7 +209,7 @@ async function claimPendingPoints(page: Page): Promise<void> {
         if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
             await closeBtn.click({ force: true }).catch(() => {});
         } else {
-            await page.keyboard.press("Escape");
+            await page.keyboard.press("Escape").catch(() => {});
         }
         await sleep(1000);
     } catch (err) {
