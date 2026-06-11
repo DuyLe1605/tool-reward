@@ -139,16 +139,22 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
  */
 async function claimPendingPoints(page: Page): Promise<void> {
     try {
+        log("Kiểm tra điểm Ready to claim...");
         // "Ready to claim" chỉ xuất hiện ở dashboard, không phải trang /earn.
-        await page.goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
-        await page.waitForURL("**/dashboard**", { timeout: 8000 }).catch(() => {});
-        await page.waitForLoadState("load", { timeout: 10000 }).catch(() => {});
-        await sleep(1500);
+        await page.goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
+        await page.waitForURL("**/dashboard**", { timeout: 15000 }).catch(() => {});
+        await page.waitForLoadState("load", { timeout: 15000 }).catch(() => {});
+        await sleep(2000);
 
-        const claimTrigger = page.locator('button:has-text("Ready to claim")').first();
-        const isVisible = await claimTrigger.isVisible({ timeout: 3000 }).catch(() => false);
+        // Selector robust cho nút Ready to claim
+        const claimTrigger = page.locator('button, [data-react-aria-pressable="true"]')
+            .filter({ hasText: /Ready to claim/i })
+            .first();
+
+        // Chờ trigger xuất hiện trong 10s
+        const isVisible = await claimTrigger.isVisible({ timeout: 10000 }).catch(() => false);
         if (!isVisible) {
-            log("Không có điểm pending cần claim.");
+            log("Không tìm thấy hoặc không có điểm pending cần claim.");
             return;
         }
 
@@ -162,7 +168,7 @@ async function claimPendingPoints(page: Page): Promise<void> {
 
         // Chờ flyout dialog "Claim points" xuất hiện
         const dialog = page.locator('section[role="dialog"]').filter({ hasText: /claim points/i }).first();
-        const dialogVisible = await dialog.waitFor({ state: "visible", timeout: 6000 }).then(
+        const dialogVisible = await dialog.waitFor({ state: "visible", timeout: 10000 }).then(
             () => true,
             () => false,
         );
@@ -170,13 +176,13 @@ async function claimPendingPoints(page: Page): Promise<void> {
             log("⚠️  Không mở được flyout Claim points.");
             return;
         }
-        await sleep(1500);
+        await sleep(2000);
 
         const earnedMoreBtn = dialog.getByRole("link", { name: /earn more points/i }).first();
-        if (await earnedMoreBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        if (await earnedMoreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
             log("Điểm pending đã được claim trước đó.");
             const closeBtn = dialog.locator('button[aria-label="Close"]').first();
-            if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
                 await closeBtn.click({ force: true }).catch(() => {});
             } else {
                 await page.keyboard.press("Escape").catch(() => {});
@@ -185,18 +191,19 @@ async function claimPendingPoints(page: Page): Promise<void> {
             return;
         }
 
-        // Click nút "Claim points" (brand button trong footer dialog)
-        const claimBtn = dialog.getByRole("button", { name: /^claim points$/i }).first();
+        // Click nút "Claim points" trong dialog
+        const claimBtn = dialog.locator('button').filter({ hasText: /^claim points$/i }).first();
 
-        if (await claimBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        if (await claimBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
             try {
                 await claimBtn.click({ force: true });
                 log("✅ Đã click nút Claim points.");
+                // Chờ cho nút đổi sang "Earn more points" hoặc biến mất
                 await dialog
                     .getByRole("link", { name: /earn more points/i })
-                    .waitFor({ state: "visible", timeout: 6000 })
+                    .waitFor({ state: "visible", timeout: 8000 })
                     .catch(() => {});
-                await sleep(1500);
+                await sleep(2000);
             } catch (clickErr) {
                 log(`⚠️  Lỗi khi click nút Claim points: ${(clickErr as Error).message}`);
             }
@@ -204,7 +211,7 @@ async function claimPendingPoints(page: Page): Promise<void> {
             log("⚠️  Không tìm thấy nút Claim points trong dialog.");
         }
 
-        // Đóng dialog — bỏ qua "Earn more points"
+        // Đóng dialog
         const closeBtn = dialog.locator('button[aria-label="Close"]').first();
         if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
             await closeBtn.click({ force: true }).catch(() => {});
@@ -262,25 +269,25 @@ export async function completeRewardsActivities(page: Page, profileName = "", pr
 
         // ── Daily Set Streak flyout ──────────────────────────────────────────
         log("Đang mở Daily Set Streak...");
-        const dailySetText = page.locator('text="Daily Set Streak"').first();
-        if (await dailySetText.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await dailySetText.click().catch(() => {});
-            await sleep(2000);
-        } else {
-            const dailySetBtn = page
-                .locator("button, .rounded-cornerCardDefault")
-                .filter({ hasText: /Daily Set Streak/i })
-                .first();
-            if ((await dailySetBtn.count()) > 0) {
-                const expanded = (await dailySetBtn.getAttribute("aria-expanded").catch(() => null)) === "true";
-                if (!expanded) {
-                    await dailySetBtn.click({ force: true }).catch(() => {});
-                    await page
-                        .waitForSelector('section[role="dialog"], [role="dialog"]', { state: "visible", timeout: 5000 })
-                        .catch(() => {});
-                    await sleep(2000);
-                }
+        const dailySetBtn = page
+            .locator('button, a, [data-react-aria-pressable="true"]')
+            .filter({ hasText: /Daily Set Streak/i })
+            .first();
+
+        if (await dailySetBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
+            const expanded = (await dailySetBtn.getAttribute("aria-expanded").catch(() => null)) === "true";
+            if (!expanded) {
+                log("  Click mở Daily Set Streak flyout...");
+                await dailySetBtn.click({ force: true }).catch(() => {});
+                await page
+                    .waitForSelector('section[role="dialog"], [role="dialog"], .bg-flyout', { state: "visible", timeout: 8000 })
+                    .catch(() => {});
+                await sleep(2000);
+            } else {
+                log("  Daily Set Streak đã được mở sẵn.");
             }
+        } else {
+            log("  ⚠️ Không tìm thấy thẻ Daily Set Streak.");
         }
 
         const flyout = page.locator('section[role="dialog"], [role="dialog"], .bg-flyout').first();

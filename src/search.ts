@@ -239,6 +239,17 @@ export async function performProfileTask(
     log(`${prefix} Đang sao chép profile vào thư mục tạm...`);
     await copyDirRecursive(srcProfile, destProfile);
 
+    // Sao chép Local State để giải mã cookies đúng profile
+    const localStateSrc = path.join(CONFIG.userDataDir, "Local State");
+    const localStateDest = path.join(tempDir, "Local State");
+    if (fs.existsSync(localStateSrc)) {
+        try {
+            fs.copyFileSync(localStateSrc, localStateDest);
+        } catch (err) {
+            log(`${prefix} ⚠️  Không thể sao chép Local State: ${(err as Error).message}`);
+        }
+    }
+
     // Kiểm tra cookies có được copy không
     const cookiesOk =
         fs.existsSync(path.join(destProfile, "Cookies")) || fs.existsSync(path.join(destProfile, "Network", "Cookies"));
