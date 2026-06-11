@@ -44,15 +44,70 @@ const FALLBACK_QUERIES = [
     "podcast nghe sách học tiếng Anh hàng ngày",
 ];
 
+// Shared cache of fetched articles to avoid hammering Wikipedia API when running tasks in parallel
+let wikiCache: string[] = [];
+let isFetching = false;
+
+const WIKI_HEADERS = {
+    "User-Agent": "BrewMonsterRewardTool/9.0 (contact@example.com; Web-Search-Bot)"
+};
+
 /**
  * Lấy nội dung một bài Wikipedia tiếng Việt ngẫu nhiên dạng plain text.
- * Tự động thử lại tối đa 3 lần nếu gặp bài stub (extract < 200 ký tự).
- * Trả về chuỗi rỗng nếu tất cả các lần thử đều thất bại.
+ * Sử dụng hàng đợi cache dùng chung và thêm header User-Agent để tránh rate limit khi chạy song song.
  */
 export async function fetchRobustWikiText(): Promise<string> {
+    // Nếu trong cache còn bài viết, lấy ra dùng ngay
+    if (wikiCache.length > 0) {
+        return wikiCache.shift() || "";
+    }
+
+    // Nếu đang có tiến trình khác fetch, chờ tối đa 10 giây
+    if (isFetching) {
+        for (let i = 0; i < 20; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            if (wikiCache.length > 0) {
+                return wikiCache.shift() || "";
+            }
+            if (!isFetching) {
+                break;
+            }
+        }
+    }
+
+    // Tự fetch và nạp vào cache
+    isFetching = true;
+    try {
+        // Fetch tối đa 3 bài viết tốt để nạp vào cache cho các luồng song song khác
+        const fetchedArticles: string[] = [];
+        for (let f = 0; f < 3; f++) {
+            const article = await doSingleWikiFetch();
+            if (article) {
+                fetchedArticles.push(article);
+            }
+        }
+
+        if (fetchedArticles.length > 0) {
+            wikiCache.push(...fetchedArticles);
+            return wikiCache.shift() || "";
+        }
+    } finally {
+        isFetching = false;
+    }
+
+    return "";
+}
+
+/**
+ * Thực hiện một lượt fetch bài viết ngẫu nhiên từ Wikipedia
+ */
+async function doSingleWikiFetch(): Promise<string> {
     for (let attempt = 0; attempt < 3; attempt++) {
         try {
-            const randomRes = await fetch(CONFIG.wikiApiUrl, { signal: AbortSignal.timeout(8000) });
+            const randomRes = await fetch(CONFIG.wikiApiUrl, {
+                headers: WIKI_HEADERS,
+                signal: AbortSignal.timeout(8000)
+            });
             const randomData = (await randomRes.json()) as {
                 query: { random: Array<{ title: string }> };
             };
@@ -60,18 +115,20 @@ export async function fetchRobustWikiText(): Promise<string> {
 
             const contentRes = await fetch(
                 `https://vi.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext&exintro=0&titles=${encodeURIComponent(title)}&format=json&origin=*`,
-                { signal: AbortSignal.timeout(8000) },
+                {
+                    headers: WIKI_HEADERS,
+                    signal: AbortSignal.timeout(8000)
+                },
             );
             const contentData = (await contentRes.json()) as {
                 query: { pages: Record<string, { extract?: string }> };
             };
             const pages = contentData.query.pages;
             const extract = pages[Object.keys(pages)[0]].extract ?? "";
-            // Bài stub thường có extract rất ngắn (năm, số, địa danh nhỏ...)
+            // Bài stub thường có extract rất ngắn
             if (extract.length >= 200) return extract;
-            // Bài quá ngắn → thử bài khác
         } catch {
-            // Network lỗi → thử lại
+            // Thử lại
         }
     }
     return "";
@@ -86,3 +143,4 @@ export function getFallbackText(): string {
     const shuffled = [...FALLBACK_QUERIES].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 8).join(" ");
 }
+
