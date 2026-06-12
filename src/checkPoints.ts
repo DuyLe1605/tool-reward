@@ -28,7 +28,7 @@ export async function checkProfilePoints(profile: EdgeProfile): Promise<void> {
     try {
         tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reward-pts-"));
         const srcProfile = path.join(CONFIG.userDataDir, profile.folder);
-        const destProfile = path.join(tempDir, "Default");
+        const destProfile = path.join(tempDir, profile.folder);
         await copyDirRecursive(srcProfile, destProfile);
 
         // Sao chép Local State để giải mã cookies đúng profile
@@ -57,7 +57,7 @@ export async function checkProfilePoints(profile: EdgeProfile): Promise<void> {
             viewport: { width: 1280, height: 720 },
             ignoreDefaultArgs: ["--enable-automation"],
             args: [
-                "--profile-directory=Default",
+                `--profile-directory=${profile.folder}`,
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
                 "--disable-infobars",

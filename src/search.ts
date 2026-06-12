@@ -235,7 +235,7 @@ export async function performProfileTask(
 
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reward-"));
     const srcProfile = path.join(CONFIG.userDataDir, selectedProfile.folder);
-    const destProfile = path.join(tempDir, "Default");
+    const destProfile = path.join(tempDir, selectedProfile.folder);
     log(`${prefix} Đang sao chép profile vào thư mục tạm...`);
     await copyDirRecursive(srcProfile, destProfile);
 
@@ -258,7 +258,7 @@ export async function performProfileTask(
     }
 
     contextUserDataDir = tempDir;
-    profileDir = "Default";
+    profileDir = selectedProfile.folder;
 
     const launchArgs = [
         `--profile-directory=${profileDir}`,
