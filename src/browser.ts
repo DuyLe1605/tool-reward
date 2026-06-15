@@ -69,3 +69,34 @@ export async function handleActivityContent(page: Page): Promise<void> {
         // Quiz/poll không load được — bỏ qua
     }
 }
+
+/**
+ * Điều hướng trang với cơ chế thử lại khi gặp lỗi mạng tạm thời.
+ */
+export async function gotoWithRetry(
+    page: Page,
+    url: string,
+    prefix = "",
+    timeout = 20000,
+    attempts = 3,
+): Promise<boolean> {
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+            await page.goto(url, { waitUntil: "domcontentloaded", timeout });
+            return true;
+        } catch (err) {
+            const msg = (err as Error).message;
+            if (
+                attempt < attempts &&
+                (msg.includes("ERR_NETWORK") || msg.includes("ERR_CONNECTION") || msg.includes("net::"))
+            ) {
+                log(`${prefix}⚠️  Lỗi mạng khi vào ${url} (lần ${attempt}/${attempts}), thử lại sau 3s...`);
+                await sleep(3000);
+            } else {
+                throw err;
+            }
+        }
+    }
+    return false;
+}
+

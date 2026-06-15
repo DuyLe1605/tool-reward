@@ -8,7 +8,7 @@ import type { Page, Locator } from "playwright";
 import { CONFIG } from "./config";
 import { sleep } from "./utils";
 import { log, emitPoints } from "./logger";
-import { handleActivityContent } from "./browser";
+import { handleActivityContent, gotoWithRetry } from "./browser";
 import { scrapeRewardsPoints, scrapeAvailablePoints, fetchAndEmitPoints } from "./pointsScraper";
 
 /** Kiểm tra đăng nhập: false nếu bị redirect sang login page hoặc trang 404/Sign-in. */
@@ -58,13 +58,14 @@ async function handleCardClick(page: Page, card: Locator): Promise<void> {
 /**
  * Quét và xử lý tất cả card nhiệm vụ trong một container.
  */
-async function processContainer(page: Page, containerLocator: Locator, label: string): Promise<void> {
+async function processContainer(page: Page, containerLocator: Locator, label: string, profileName = ""): Promise<void> {
+    const prefix = profileName ? `[${profileName}] ` : "";
     if ((await containerLocator.count()) === 0) return;
     await containerLocator.scrollIntoViewIfNeeded().catch(() => {});
 
     const cards = await containerLocator.locator('[data-react-aria-pressable="true"]').all();
 
-    log(`--- Quét: ${label} (${cards.length} mục) ---`);
+    log(`${prefix}--- Quét: ${label} (${cards.length} mục) ---`);
 
     for (const card of cards) {
         try {
@@ -81,7 +82,7 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
                 cardHtml.includes("mee-icon-CheckMark") ||
                 cardText.includes("completed");
             if (isCompleted) {
-                log(`  [done] "${title}"`);
+                log(`${prefix}  [done] "${title}"`);
                 continue;
             }
 
@@ -89,7 +90,7 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
                 (await card.getAttribute("aria-disabled").catch(() => null)) === "true" ||
                 (await card.getAttribute("data-disabled").catch(() => null)) === "true";
             if (isDisabled) {
-                log(`  [locked] "${title}"`);
+                log(`${prefix}  [locked] "${title}"`);
                 continue;
             }
 
@@ -111,7 +112,7 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
                 href.includes("ux=searchbar") ||
                 href.includes("levelbenefitexclusive")
             ) {
-                log(`  [skip] "${title}"`);
+                log(`${prefix}  [skip] "${title}"`);
                 continue;
             }
 
@@ -119,11 +120,11 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
             const hasClaimablePoints = cardHtml.includes("bg-statusInformativeTintBg");
             if (!hasClaimablePoints) continue;
 
-            log(`  → "${title}"`);
+            log(`${prefix}  → "${title}"`);
             await card.scrollIntoViewIfNeeded().catch(() => {});
             await handleCardClick(page, card);
         } catch (err) {
-            log(`  Lỗi card: ${(err as Error).message}`);
+            log(`${prefix}  Lỗi card: ${(err as Error).message}`);
         }
     }
 }
@@ -137,53 +138,59 @@ async function processContainer(page: Page, containerLocator: Locator, label: st
  *   3. Trong dialog, click nút "Claim points" (brand button)
  *   4. Đóng dialog — bỏ qua "Earn more points"
  */
-async function claimPendingPoints(page: Page): Promise<void> {
+async function claimPendingPoints(page: Page, profileName = ""): Promise<void> {
+    const prefix = profileName ? `[${profileName}] ` : "";
     try {
-        log("Kiểm tra điểm Ready to claim...");
+        log(`${prefix}Kiểm tra điểm Ready to claim...`);
         // "Ready to claim" chỉ xuất hiện ở dashboard, không phải trang /earn.
-        await page.goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
+        const loaded = await gotoWithRetry(page, "https://rewards.bing.com/", prefix).catch(() => false);
+        if (!loaded) return;
+
+        await sleep(1500);
         await page.waitForURL("**/dashboard**", { timeout: 15000 }).catch(() => {});
         await page.waitForLoadState("load", { timeout: 15000 }).catch(() => {});
         await sleep(2000);
 
-        // Selector robust cho nút Ready to claim
+        // Selector robust cho nút Ready to claim (hỗ trợ tiếng Anh + Việt)
         const claimTrigger = page.locator('button, [data-react-aria-pressable="true"]')
-            .filter({ hasText: /Ready to claim/i })
+            .filter({ hasText: /Ready to claim|Sẵn sàng nhận/i })
             .first();
 
         // Chờ trigger xuất hiện trong 10s
         const isVisible = await claimTrigger.isVisible({ timeout: 10000 }).catch(() => false);
         if (!isVisible) {
-            log("Không tìm thấy hoặc không có điểm pending cần claim.");
+            log(`${prefix}Không tìm thấy hoặc không có điểm pending cần claim.`);
             return;
         }
 
-        log("Đang mở flyout để claim điểm pending...");
+        log(`${prefix}Đang mở flyout để claim điểm pending...`);
         try {
-            await claimTrigger.click({ force: true });
+            await claimTrigger.scrollIntoViewIfNeeded().catch(() => {});
+            await claimTrigger.click({ timeout: 5000 });
         } catch (clickErr) {
-            log(`⚠️  Lỗi khi click Ready to claim: ${(clickErr as Error).message}`);
-            return;
+            log(`${prefix}⚠️  Lỗi khi click Ready to claim (thử lại với force): ${(clickErr as Error).message}`);
+            await claimTrigger.click({ force: true }).catch(() => {});
         }
 
-        // Chờ flyout dialog "Claim points" xuất hiện
+        // Chờ flyout dialog "Claim points" xuất hiện (hỗ trợ tiếng Anh + Việt)
         const dialog = page.locator('section[role="dialog"]').filter({ hasText: /claim points/i }).first();
         const dialogVisible = await dialog.waitFor({ state: "visible", timeout: 10000 }).then(
             () => true,
             () => false,
         );
         if (!dialogVisible) {
-            log("⚠️  Không mở được flyout Claim points.");
+            log(`${prefix}⚠️  Không mở được flyout Claim points.`);
             return;
         }
         await sleep(2000);
 
-        const earnedMoreBtn = dialog.getByRole("link", { name: /earn more points/i }).first();
+        // Check xem có nút "Earn more points" / "Kiếm thêm điểm" không (đã nhận trước đó)
+        const earnedMoreBtn = dialog.getByRole("link", { name: /earn more points|kiếm thêm điểm/i }).first();
         if (await earnedMoreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            log("Điểm pending đã được claim trước đó.");
-            const closeBtn = dialog.locator('button[aria-label="Close"]').first();
+            log(`${prefix}Điểm pending đã được claim trước đó.`);
+            const closeBtn = dialog.locator('button[aria-label="Close"], button[aria-label="Đóng"], button:has-text("Close"), button:has-text("Đóng")').first();
             if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-                await closeBtn.click({ force: true }).catch(() => {});
+                await closeBtn.click().catch(() => {});
             } else {
                 await page.keyboard.press("Escape").catch(() => {});
             }
@@ -191,36 +198,40 @@ async function claimPendingPoints(page: Page): Promise<void> {
             return;
         }
 
-        // Click nút "Claim points" trong dialog
-        const claimBtn = dialog.locator('button').filter({ hasText: /^claim points$/i }).first();
+        // Click nút "Claim points" trong dialog (hỗ trợ tiếng Anh + Việt)
+        const claimBtn = dialog.locator('button').filter({ hasText: /^(claim points|nhận điểm)$/i }).first();
 
         if (await claimBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
             try {
-                await claimBtn.click({ force: true });
-                log("✅ Đã click nút Claim points.");
-                // Chờ cho nút đổi sang "Earn more points" hoặc biến mất
-                await dialog
-                    .getByRole("link", { name: /earn more points/i })
-                    .waitFor({ state: "visible", timeout: 8000 })
-                    .catch(() => {});
-                await sleep(2000);
+                await claimBtn.scrollIntoViewIfNeeded().catch(() => {});
+                await claimBtn.click({ timeout: 5000 });
+                log(`${prefix}✅ Đã click nút Claim points.`);
             } catch (clickErr) {
-                log(`⚠️  Lỗi khi click nút Claim points: ${(clickErr as Error).message}`);
+                log(`${prefix}⚠️  Lỗi khi click nút Claim points (thử lại với force): ${(clickErr as Error).message}`);
+                await claimBtn.click({ force: true }).catch(() => {});
+                log(`${prefix}✅ Đã click nút Claim points (force).`);
             }
+
+            // Chờ cho nút đổi sang "Earn more points" / "Kiếm thêm điểm" hoặc dialog tự đóng
+            await Promise.race([
+                dialog.getByRole("link", { name: /earn more points|kiếm thêm điểm/i }).waitFor({ state: "visible", timeout: 8000 }),
+                dialog.waitFor({ state: "hidden", timeout: 8000 }),
+            ]).catch(() => {});
+            await sleep(2000);
         } else {
-            log("⚠️  Không tìm thấy nút Claim points trong dialog.");
+            log(`${prefix}⚠️  Không tìm thấy nút Claim points trong dialog.`);
         }
 
         // Đóng dialog
-        const closeBtn = dialog.locator('button[aria-label="Close"]').first();
+        const closeBtn = dialog.locator('button[aria-label="Close"], button[aria-label="Đóng"], button:has-text("Close"), button:has-text("Đóng")').first();
         if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await closeBtn.click({ force: true }).catch(() => {});
+            await closeBtn.click().catch(() => {});
         } else {
             await page.keyboard.press("Escape").catch(() => {});
         }
         await sleep(1000);
     } catch (err) {
-        log(`⚠️  Lỗi khi claim điểm: ${(err as Error).message}`);
+        log(`${prefix}⚠️  Lỗi khi claim điểm: ${(err as Error).message}`);
     }
 }
 
@@ -228,47 +239,31 @@ async function claimPendingPoints(page: Page): Promise<void> {
  * Điều hướng đến trang Rewards và hoàn thành tất cả nhiệm vụ có thể tự động hóa.
  */
 export async function completeRewardsActivities(page: Page, profileName = "", profileEmail = ""): Promise<void> {
-    log("\n--- ĐANG XỬ LÝ CÁC NHIỆM VỤ REWARDS ---");
+    const prefix = profileName ? `[${profileName}] ` : "";
+    log(`\n${prefix}--- ĐANG XỬ LÝ CÁC NHIỆM VỤ REWARDS ---`);
     try {
         // Warm-up: vào rewards.bing.com/ trước để trigger auth cookie, đợi redirect sang dashboard
-        log("Warm-up auth Rewards...");
-        await page.goto("https://rewards.bing.com/", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+        log(`${prefix}Warm-up auth Rewards...`);
+        const warmupLoaded = await gotoWithRetry(page, "https://rewards.bing.com/", prefix, 15000).catch(() => false);
+        if (!warmupLoaded) return;
         await sleep(1500);
         await page.waitForURL("**/dashboard**", { timeout: 8000 }).catch(() => {});
         await sleep(2000);
-        log(`  → URL sau warm-up: ${page.url()}`);
+        log(`${prefix}  → URL sau warm-up: ${page.url()}`);
 
         // Retry goto khi gặp lỗi mạng thoáng qua (ERR_NETWORK_CHANGED, ERR_CONNECTION_RESET...)
-        let loaded = false;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-                await page.goto(CONFIG.rewardsUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
-                loaded = true;
-                break;
-            } catch (err) {
-                const msg = (err as Error).message;
-                if (
-                    attempt < 3 &&
-                    (msg.includes("ERR_NETWORK") || msg.includes("ERR_CONNECTION") || msg.includes("net::"))
-                ) {
-                    log(`⚠️  Lỗi mạng (lần ${attempt}), thử lại sau 3s...`);
-                    await sleep(3000);
-                } else {
-                    throw err;
-                }
-            }
-        }
+        const loaded = await gotoWithRetry(page, CONFIG.rewardsUrl, prefix).catch(() => false);
         if (!loaded) return;
         await page.waitForLoadState("load", { timeout: 10000 }).catch(() => {});
         await sleep(2000);
 
         if (!(await isLoggedIn(page))) {
-            log(`⚠️  Chưa đăng nhập vào Rewards (URL: ${page.url()}) — bỏ qua.`);
+            log(`${prefix}⚠️  Chưa đăng nhập vào Rewards (URL: ${page.url()}) — bỏ qua.`);
             return;
         }
 
         // ── Daily Set Streak flyout ──────────────────────────────────────────
-        log("Đang mở Daily Set Streak...");
+        log(`${prefix}Đang mở Daily Set Streak...`);
         const dailySetBtn = page
             .locator('button, a, [data-react-aria-pressable="true"]')
             .filter({ hasText: /Daily Set Streak/i })
@@ -277,59 +272,59 @@ export async function completeRewardsActivities(page: Page, profileName = "", pr
         if (await dailySetBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
             const expanded = (await dailySetBtn.getAttribute("aria-expanded").catch(() => null)) === "true";
             if (!expanded) {
-                log("  Click mở Daily Set Streak flyout...");
+                log(`${prefix}  Click mở Daily Set Streak flyout...`);
                 await dailySetBtn.click({ force: true }).catch(() => {});
                 await page
                     .waitForSelector('section[role="dialog"], [role="dialog"], .bg-flyout', { state: "visible", timeout: 8000 })
                     .catch(() => {});
                 await sleep(2000);
             } else {
-                log("  Daily Set Streak đã được mở sẵn.");
+                log(`${prefix}  Daily Set Streak đã được mở sẵn.`);
             }
         } else {
-            log("  ⚠️ Không tìm thấy thẻ Daily Set Streak.");
+            log(`${prefix}  ⚠️ Không tìm thấy thẻ Daily Set Streak.`);
         }
 
         const flyout = page.locator('section[role="dialog"], [role="dialog"], .bg-flyout').first();
         if (await flyout.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await processContainer(page, flyout, "Bảng Flyout");
+            await processContainer(page, flyout, "Bảng Flyout", profileName);
             const closeBtn = flyout.locator('button[aria-label="Close"], button:has-text("Close")').first();
             if (await closeBtn.isVisible().catch(() => false)) await closeBtn.click().catch(() => {});
             else await page.keyboard.press("Escape");
             await sleep(2000);
         } else {
-            log("Không tìm thấy flyout Daily Set.");
+            log(`${prefix}Không tìm thấy flyout Daily Set.`);
         }
 
         // ── Keep Earning ─────────────────────────────────────────────────────
         const moreActivities = page.locator("section#moreactivities").first();
         if ((await moreActivities.count()) > 0) {
-            await processContainer(page, moreActivities, "Keep Earning");
+            await processContainer(page, moreActivities, "Keep Earning", profileName);
         } else {
-            log("Không tìm thấy section#moreactivities.");
+            log(`${prefix}Không tìm thấy section#moreactivities.`);
         }
 
         // ── Show more → quét thêm ────────────────────────────────────────────
         const showMoreBtn = page.locator('button:has-text("Show more")').first();
         if (await showMoreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            log('Click "Show more"...');
+            log(`${prefix}Click "Show more"...`);
             await showMoreBtn.click().catch(() => {});
             await sleep(3000);
             if ((await moreActivities.count()) > 0) {
-                await processContainer(page, moreActivities, "Keep Earning (Show more)");
+                await processContainer(page, moreActivities, "Keep Earning (Show more)", profileName);
             }
         }
 
-        log("\n--- HOÀN THÀNH REWARDS ---");
+        log(`\n${prefix}--- HOÀN THÀNH REWARDS ---`);
 
         // ── Claim pending points ──────────────────────────────────────────────
-        await claimPendingPoints(page);
+        await claimPendingPoints(page, profileName);
 
         // Scrape điểm sau khi hoàn thành tất cả tasks
         if (profileName) {
             await fetchAndEmitPoints(page, profileName, profileEmail);
         }
     } catch (err) {
-        log(`Lỗi Rewards: ${(err as Error).message}`);
+        log(`${prefix}Lỗi Rewards: ${(err as Error).message}`);
     }
 }
