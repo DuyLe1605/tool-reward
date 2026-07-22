@@ -14,35 +14,71 @@ import { sleep } from "./utils";
 import { log } from "./logger";
 
 /**
- * Tự động bấm "Accept" trên popup cookie của Bing.
- * Dùng combined selector để check tất cả biến thể cùng lúc (desktop + mobile).
+ * Tự động bấm "Accept" hoặc "Reject" / đóng popup cookie & banner overlay của Bing.
+ * Dùng combined selector để check tất cả biến thể cùng lúc, đồng thời ẩn overlay wrapper trong DOM nếu bị che.
  */
 export async function dismissCookieConsent(page: Page): Promise<void> {
     try {
-        // Desktop: #bnp_btn_accept (div bọc hoặc thẻ a bên trong)
-        // Mobile:  button full-width có text "Accept" (dialog mới của Bing)
-        const btn = page
-            .locator('#bnp_btn_accept a, #bnp_btn_accept, button:has-text("Accept"), button:has-text("Accept all")')
-            .first();
-        if (await btn.isVisible({ timeout: 4000 }).catch(() => false)) {
-            await btn.click().catch(() => {});
-            await sleep(500);
+        const consentSelectors = [
+            '#bnp_btn_accept a',
+            '#bnp_btn_accept',
+            '#bnp_btn_reject a',
+            '#bnp_btn_reject',
+            '[data-viewname*="RejectBtn"]',
+            '[data-viewname*="AcceptBtn"]',
+            '.bnp_overlay_wrapper button',
+            '[data-viewname*="OverlayBanner"] button',
+            '#bnp_container button',
+            'button:has-text("Accept")',
+            'button:has-text("Accept all")',
+            'button:has-text("Reject")',
+            'button:has-text("Reject all")',
+            'button:has-text("Refuse")',
+            'button:has-text("Chấp nhận")',
+            'button:has-text("Tôi đồng ý")',
+            'button:has-text("Từ chối")',
+        ].join(', ');
+
+        const btn = page.locator(consentSelectors).first();
+        if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await btn.click({ force: true }).catch(() => {});
+            await sleep(300);
         }
+
+        // Nếu overlay wrapper vẫn tồn tại che phủ màn hình, ẩn/xóa nó khỏi DOM để không chặn pointer events
+        await page
+            .evaluate(() => {
+                const overlays = document.querySelectorAll(
+                    '.bnp_overlay_wrapper, #bnp_container, [data-viewname*="OverlayBanner"]'
+                );
+                overlays.forEach((el) => {
+                    if (el) {
+                        (el as HTMLElement).style.display = 'none';
+                        (el as HTMLElement).style.pointerEvents = 'none';
+                    }
+                });
+            })
+            .catch(() => {});
     } catch {
         // Không có popup — bỏ qua
     }
 }
 
 /**
- * Gắn handler tự động dismiss cookie consent khi popup xuất hiện bất cứ lúc nào.
- * Dùng nút Accept làm trigger — khi nó visible thì click luôn.
+ * Gắn handler tự động dismiss cookie consent / overlay khi banner xuất hiện bất cứ lúc nào.
  */
 export async function setupCookieConsentHandler(page: Page): Promise<void> {
     try {
-        // Dùng chính nút Accept làm locator — khi nó xuất hiện thì handler được gọi
-        await page.addLocatorHandler(page.locator("#bnp_btn_accept").first(), async (btn) => {
-            await btn.click().catch(() => {});
-            await sleep(300);
+        const selector = [
+            '#bnp_btn_accept',
+            '#bnp_btn_reject',
+            '.bnp_overlay_wrapper',
+            '[data-viewname*="OverlayBanner"]',
+            '#bnp_container',
+        ].join(', ');
+
+        await page.addLocatorHandler(page.locator(selector).first(), async () => {
+            await dismissCookieConsent(page);
         });
     } catch {
         // addLocatorHandler không khả dụng — bỏ qua

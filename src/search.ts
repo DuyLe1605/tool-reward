@@ -14,7 +14,7 @@ import os from "os";
 import { CONFIG } from "./config";
 import { sleep, copyDirRecursive } from "./utils";
 import { fetchRobustWikiText, getFallbackText } from "./wiki";
-import { dismissCookieConsent } from "./browser";
+import { dismissCookieConsent, setupCookieConsentHandler } from "./browser";
 import { completeRewardsActivities } from "./rewards";
 import { scrapeRewardsPoints, scrapeAvailablePoints, fetchAndEmitPoints } from "./pointsScraper";
 import { log, emitProgress, emitPoints } from "./logger";
@@ -59,39 +59,16 @@ async function performMobileSearch(
         Object.defineProperty(navigator, "languages", { get: () => ["vi-VN", "vi", "en-US", "en"] });
     });
 
-    // Auto-dismiss cookie consent: handler liên tục + load event
-    const mobileConsentSelectors = [
-        'button:has-text("Accept")',
-        'button:has-text("Accept all")',
-        "#bnp_btn_accept a",
-        "#bnp_btn_accept",
-    ].join(", ");
-    const dismissMobileConsent = async () => {
-        try {
-            const btn = page.locator(mobileConsentSelectors).first();
-            if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
-                await btn.click({ force: true }).catch(() => {});
-            }
-        } catch {
-            /* bỏ qua */
-        }
-    };
-    // Trigger sau mỗi lần trang load xong
-    page.on("load", () => dismissMobileConsent());
-    // addLocatorHandler dự phòng
-    await page
-        .addLocatorHandler(page.locator(mobileConsentSelectors).first(), async (btn) => {
-            await btn.click({ force: true }).catch(() => {});
-        })
-        .catch(() => {});
+    await setupCookieConsentHandler(page).catch(() => {});
+    page.on("load", () => dismissCookieConsent(page).catch(() => {}));
 
     let searched = 0;
 
     try {
         await page.goto("https://www.bing.com", { waitUntil: "domcontentloaded", timeout: 20000 });
-        await dismissMobileConsent();
+        await dismissCookieConsent(page);
         await sleep(1500);
-        await dismissMobileConsent(); // popup đôi khi load chậm hơn trang
+        await dismissCookieConsent(page); // popup đôi khi load chậm hơn trang
         await sleep(1500, sig());
 
         let emptyRetries = 0;
@@ -128,7 +105,11 @@ async function performMobileSearch(
                                 .waitForSelector('textarea[name="q"], input[name="q"]', { timeout: 10000 })
                                 .catch(() => null);
                             if (!searchBox) continue;
-                            await searchBox.tap();
+                            await searchBox.tap({ timeout: 3000 }).catch(async () => {
+                                await dismissCookieConsent(page);
+                                await searchBox.click({ force: true }).catch(() => {});
+                                await searchBox.focus().catch(() => {});
+                            });
                             await sleep(400);
                             await page.keyboard.type(query, { delay: Math.random() * 80 + 40 });
                             await page.keyboard.press("Enter");
@@ -178,7 +159,11 @@ async function performMobileSearch(
                         continue;
                     }
 
-                    await searchBox.tap();
+                    await searchBox.tap({ timeout: 3000 }).catch(async () => {
+                        await dismissCookieConsent(page);
+                        await searchBox.click({ force: true }).catch(() => {});
+                        await searchBox.focus().catch(() => {});
+                    });
                     await sleep(400);
                     await page.keyboard.type(query, { delay: Math.random() * 80 + 40 });
                     await page.keyboard.press("Enter");
@@ -327,8 +312,11 @@ export async function performProfileTask(
             Object.defineProperty(navigator, "languages", { get: () => ["vi-VN", "vi", "en-US", "en"] });
         });
 
+        await setupCookieConsentHandler(page).catch(() => {});
+
         // Auto-dismiss cookie consent trên mọi tab/popup mới
         context.on("page", (newPage) => {
+            setupCookieConsentHandler(newPage).catch(() => {});
             newPage.on("load", () => dismissCookieConsent(newPage).catch(() => {}));
         });
 
@@ -380,7 +368,11 @@ export async function performProfileTask(
                                 const searchBox = await page.waitForSelector('textarea[name="q"], input[name="q"]', {
                                     timeout: 10000,
                                 });
-                                await searchBox.click();
+                                await searchBox.click({ timeout: 3000 }).catch(async () => {
+                                    await dismissCookieConsent(page);
+                                    await searchBox.click({ force: true }).catch(() => {});
+                                    await searchBox.focus().catch(() => {});
+                                });
                                 await page.keyboard.type(query, { delay: Math.random() * 100 + 50 });
                                 await page.keyboard.press("Enter");
                                 await page.waitForLoadState("domcontentloaded").catch(() => {});
@@ -425,9 +417,13 @@ export async function performProfileTask(
                         const searchBox = await page.waitForSelector('textarea[name="q"], input[name="q"]', {
                             timeout: 10000,
                         });
-                        await searchBox.hover();
+                        await searchBox.hover().catch(() => {});
                         await sleep(500);
-                        await searchBox.click();
+                        await searchBox.click({ timeout: 3000 }).catch(async () => {
+                            await dismissCookieConsent(page);
+                            await searchBox.click({ force: true }).catch(() => {});
+                            await searchBox.focus().catch(() => {});
+                        });
 
                         await page.keyboard.type(query, { delay: Math.random() * 100 + 50 });
                         await page.keyboard.press("Enter");
