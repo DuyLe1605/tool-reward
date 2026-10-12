@@ -14,6 +14,7 @@ import fs from "fs";
 import { getEdgeProfiles } from "../src/profiles";
 import { getTaskStatus, startTask, stopTask, startCheckPoints } from "./taskManager";
 import { getAppState, setLastCheckedDate } from "./stateStore";
+import { getLicenseStatus, activateLicense, consumeRuns } from "./licenseService";
 
 const router = Router();
 
@@ -38,7 +39,29 @@ router.get("/status", (_req, res) => {
     res.json({ ok: true, version: getVersion() });
 });
 
+// ── Quản lý Bản quyền (License) ──
+router.get("/license", async (_req, res) => {
+    try {
+        const status = await getLicenseStatus();
+        res.json(status);
+    } catch (err) {
+        res.status(500).json({ error: (err as Error).message });
+    }
+});
 
+router.post("/license/activate", async (req, res) => {
+    const { key } = req.body as { key?: string };
+    if (!key || typeof key !== "string" || !key.trim()) {
+        res.status(400).json({ error: "Vui lòng nhập mã key hợp lệ" });
+        return;
+    }
+    try {
+        const info = await activateLicense(key.trim());
+        res.json({ ok: true, license: info });
+    } catch (err) {
+        res.status(400).json({ error: (err as Error).message });
+    }
+});
 
 router.get("/profiles", (_req, res) => {
     res.json(getEdgeProfiles());
@@ -63,6 +86,28 @@ router.post("/tasks/start", async (req, res) => {
     }
 
     try {
+        // 1. Kiểm tra bản quyền trước
+        const licenseStatus = await getLicenseStatus();
+        if (!licenseStatus.license || !licenseStatus.license.valid) {
+            res.status(403).json({ 
+                error: licenseStatus.license?.error || "Chưa kích hoạt bản quyền hợp lệ! Vui lòng nhập Key ở góc trên." 
+            });
+            return;
+        }
+
+        // 2. Kiểm tra số lượng profile có vượt quá max_profiles không
+        const maxProfiles = licenseStatus.license.max_profiles ?? 5;
+        if (profileIndices.length > maxProfiles) {
+            res.status(400).json({
+                error: `Gói bản quyền của bạn chỉ cho phép tối đa ${maxProfiles} profile. Bạn đang chọn ${profileIndices.length} profile!`
+            });
+            return;
+        }
+
+        // 3. Trừ số lượt runs ngay lập tức (1 profile chạy = 1 run)
+        await consumeRuns(profileIndices.length);
+
+        // 4. Khởi chạy task
         await startTask(profileIndices, maxSearches ?? 35, mobileSearches ?? 20, mode ?? "s", searchType ?? "both");
         res.json({ ok: true });
     } catch (err) {

@@ -83,10 +83,18 @@ export function ControlPanel() {
 
     // Toast khi có lỗi
     useEffect(() => {
-        if (startMutation.isError) toast.error((startMutation.error as Error).message);
+        if (startMutation.isError) {
+            const err = startMutation.error as any;
+            const msg = err?.response?.data?.error || err?.message || "Có lỗi xảy ra khi bắt đầu task";
+            toast.error(msg);
+        }
     }, [startMutation.isError, startMutation.error]);
     useEffect(() => {
-        if (checkPointsMutation.isError) toast.error((checkPointsMutation.error as Error).message);
+        if (checkPointsMutation.isError) {
+            const err = checkPointsMutation.error as any;
+            const msg = err?.response?.data?.error || err?.message || "Có lỗi xảy ra khi kiểm tra điểm";
+            toast.error(msg);
+        }
     }, [checkPointsMutation.isError, checkPointsMutation.error]);
 
     // Keyboard shortcuts: Ctrl+Enter → Start/Stop, Ctrl+K → Check points

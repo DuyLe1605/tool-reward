@@ -1,10 +1,12 @@
 import { cn } from "@/lib/utils";
-import { Moon, Sun, Power, BookOpen, House } from "lucide-react";
+import { Moon, Sun, Power, BookOpen, House, KeyRound } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { api } from "@/api";
+import { api, type LicenseStatusResponse } from "@/api";
+import { useQuery } from "@tanstack/react-query";
 import { NavLink, type NavLinkRenderProps } from "react-router-dom";
+import { LicenseModal } from "./LicenseModal";
 import {
     AlertDialog,
     AlertDialogTrigger,
@@ -22,6 +24,15 @@ export function Header() {
     const setTheme = useAppStore((s) => s.setTheme);
     const [exiting, setExiting] = useState(false);
     const [version, setVersion] = useState("9.0.7");
+    const [licenseOpen, setLicenseOpen] = useState(false);
+
+    const { data: licenseData } = useQuery<LicenseStatusResponse>({
+        queryKey: ["license"],
+        queryFn: api.getLicense,
+        refetchInterval: 30000, // Cập nhật lại mỗi 30s
+    });
+
+    const isLicValid = licenseData?.license?.valid === true;
 
     useEffect(() => {
         fetch("/api/status")
@@ -53,7 +64,30 @@ export function Header() {
                     <p className="text-xs text-muted-foreground">v{version} · Multi-Profile</p>
                 </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
+                {/* Nút Bản quyền */}
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLicenseOpen(true)}
+                    className={cn(
+                        "h-8 px-2.5 text-xs font-medium gap-1.5 border transition-all cursor-pointer",
+                        isLicValid
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                            : "bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 animate-pulse"
+                    )}
+                    title="Bản quyền & Lượt chạy"
+                >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    {isLicValid ? (
+                        <span>Còn {licenseData?.license?.remaining_runs ?? 0} runs</span>
+                    ) : (
+                        <span>Kích hoạt Key</span>
+                    )}
+                </Button>
+
+                <div className="w-px h-5 bg-border" />
+
                 <NavLink
                     to="/"
                     end
@@ -116,6 +150,9 @@ export function Header() {
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
+
+                {/* Dialog quản lý bản quyền */}
+                <LicenseModal open={licenseOpen} onClose={() => setLicenseOpen(false)} />
             </div>
         </header>
     );

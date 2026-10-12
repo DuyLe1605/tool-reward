@@ -13,7 +13,33 @@ export interface AppState {
     points: Record<string, PointsSummary>;
 }
 
+export interface LicenseInfo {
+    valid: boolean;
+    error?: string;
+    key_code?: string;
+    customer_name?: string;
+    max_profiles?: number;
+    total_runs?: number;
+    used_runs?: number;
+    remaining_runs?: number;
+    expires_at?: string;
+    activated_at?: string;
+}
+
+export interface LicenseStatusResponse {
+    machineId: string;
+    key: string | null;
+    license: LicenseInfo | null;
+}
+
 export const api = {
+    /** Lấy thông tin bản quyền hiện tại */
+    getLicense: () => http.get<LicenseStatusResponse>("/license").then((r) => r.data),
+
+    /** Kích hoạt key mới (thay thế key cũ) */
+    activateLicense: (key: string) =>
+        http.post<{ ok: boolean; license: LicenseInfo }>("/license/activate", { key }).then((r) => r.data),
+
     /** Lấy danh sách profile Edge từ hệ thống. */
     getProfiles: () => http.get<EdgeProfile[]>("/profiles").then((r) => r.data),
 
@@ -45,3 +71,4 @@ export const api = {
     /** Tắt server và đóng ứng dụng. */
     shutdown: () => http.post<{ ok: boolean }>("/shutdown").then((r) => r.data),
 };
+
