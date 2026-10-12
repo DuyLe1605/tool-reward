@@ -119,25 +119,56 @@ export function LicenseModal({ open, onClose }: LicenseModalProps) {
                                 </span>
                             </div>
 
-                            {/* Thông số Quota */}
-                            <div className="grid grid-cols-2 gap-2.5 pt-1 text-xs">
-                                <div className="p-2.5 rounded-md bg-background/60 border border-border/50">
-                                    <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-                                        <Users className="w-3.5 h-3.5 text-primary" />
-                                        <span>Giới hạn Profile</span>
+                            {/* Mã Key đang dùng */}
+                            <div className="p-2.5 rounded-md bg-background/60 border border-border/50 flex items-center justify-between">
+                                <div>
+                                    <span className="text-[11px] text-muted-foreground block">Mã Key đang sử dụng:</span>
+                                    <span className="font-mono font-bold text-xs text-foreground tracking-wider">{lic?.key_code}</span>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => {
+                                        if (lic?.key_code) {
+                                            navigator.clipboard.writeText(lic.key_code);
+                                            toast.info("Đã chép mã Key vào bộ nhớ tạm");
+                                        }
+                                    }}
+                                >
+                                    <Copy className="w-3.5 h-3.5 mr-1" /> Chép Key
+                                </Button>
+                            </div>
+
+                            {/* Thông số Quota & Thiết bị */}
+                            <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+                                <div className="p-2 rounded-md bg-background/60 border border-border/50 text-center">
+                                    <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1 text-[11px]">
+                                        <Users className="w-3 h-3 text-primary" />
+                                        <span>Max Profile</span>
                                     </div>
-                                    <div className="text-sm font-bold text-foreground">
-                                        Tối đa {lic?.max_profiles ?? 5} Profile
+                                    <div className="text-xs font-bold text-foreground">
+                                        {lic?.max_profiles ?? 5} nick
                                     </div>
                                 </div>
 
-                                <div className="p-2.5 rounded-md bg-background/60 border border-border/50">
-                                    <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-                                        <Activity className="w-3.5 h-3.5 text-primary" />
-                                        <span>Lượt chạy còn lại</span>
+                                <div className="p-2 rounded-md bg-background/60 border border-border/50 text-center">
+                                    <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1 text-[11px]">
+                                        <Activity className="w-3 h-3 text-primary" />
+                                        <span>Quota Còn</span>
                                     </div>
-                                    <div className="text-sm font-bold text-foreground">
-                                        {remainingRuns} / {totalRuns} runs
+                                    <div className="text-xs font-bold text-foreground">
+                                        {remainingRuns} / {totalRuns}
+                                    </div>
+                                </div>
+
+                                <div className="p-2 rounded-md bg-background/60 border border-border/50 text-center">
+                                    <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1 text-[11px]">
+                                        <Laptop className="w-3 h-3 text-primary" />
+                                        <span>Thiết bị</span>
+                                    </div>
+                                    <div className="text-xs font-bold text-foreground">
+                                        {lic?.activations_count ?? 1} / {lic?.max_activations ?? 1} máy
                                     </div>
                                 </div>
                             </div>
@@ -145,8 +176,8 @@ export function LicenseModal({ open, onClose }: LicenseModalProps) {
                             {/* Progress bar */}
                             <div className="space-y-1">
                                 <div className="flex justify-between text-[11px] text-muted-foreground">
-                                    <span>Đã sử dụng: {usedRuns} runs ({usagePercent}%)</span>
-                                    <span>Còn: {remainingRuns} runs</span>
+                                    <span>Đã dùng: {usedRuns} runs ({usagePercent}%)</span>
+                                    <span>Còn lại: {remainingRuns} runs</span>
                                 </div>
                                 <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
                                     <div
@@ -159,14 +190,14 @@ export function LicenseModal({ open, onClose }: LicenseModalProps) {
                             </div>
 
                             {/* Hạn dùng */}
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
-                                <Calendar className="w-3.5 h-3.5" />
-                                <span>
-                                    Hạn sử dụng:{" "}
-                                    <strong className="text-foreground">
-                                        {lic?.expires_at ? new Date(lic.expires_at).toLocaleDateString("vi-VN") : "Vĩnh viễn"}
-                                    </strong>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                                <span className="flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    <span>Hạn dùng:</span>
                                 </span>
+                                <strong className="text-foreground">
+                                    {lic?.expires_at ? new Date(lic.expires_at).toLocaleDateString("vi-VN") : "Vĩnh viễn"}
+                                </strong>
                             </div>
                         </div>
                     ) : (

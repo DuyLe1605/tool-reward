@@ -23,6 +23,8 @@ export interface LicenseInfo {
     total_runs?: number;
     used_runs?: number;
     remaining_runs?: number;
+    max_activations?: number;
+    activations_count?: number;
     expires_at?: string;
     activated_at?: string;
 }
